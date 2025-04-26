@@ -14,10 +14,12 @@
 # Step 1: Named Pipe Management
 
 # Default values
+# step 1
 PIPE_NAME="/tmp/cbs_pipe"
 VERBOSE=false
 
 # Function to display help
+# step 1
 show_help() {
     echo "Usage: ./cbs.sh [options]"
     echo "Options:"
@@ -28,6 +30,7 @@ show_help() {
 }
 
 # Parse command-line arguments
+# step 1
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -h|--help) show_help; exit 0 ;;
@@ -40,6 +43,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Function to create the named pipe
+# step 1
 create_pipe() {
     if [[ ! -p "$PIPE_NAME" ]]; then
         if $VERBOSE; then echo "Creating named pipe: $PIPE_NAME"; fi
@@ -50,6 +54,7 @@ create_pipe() {
 }
 
 # Cleanup function to remove the named pipe on exit
+# step 1
 cleanup() {
     if [[ -p "$PIPE_NAME" ]]; then
         if $VERBOSE; then echo "Removing named pipe: $PIPE_NAME"; fi
@@ -58,17 +63,58 @@ cleanup() {
 }
 
 # Set trap to clean up on exit
+# step 1
 trap cleanup EXIT
 
+# Function to process client commands
+# step 2
+process_command() {
+    local command="$1"
+    case "$command" in
+        q) 
+            echo "Quit command received. Ending session."
+            exit 0
+            ;;
+        s)
+            echo "Start command received. Starting question-answer session."
+            # Logic to start the session (to be implemented)
+            ;;
+        t)
+            echo "Time command received. Sending remaining time."
+            # Logic to send remaining time (to be implemented)
+            ;;
+        l)
+            echo "List command received. Sending question list."
+            # Logic to send question list (to be implemented)
+            ;;
+        [0-9] | [0-9][0-9] )
+            echo "Question number $command received. Sending question and answers."
+            # Logic to send question and answers (to be implemented)
+            ;;
+        a)
+            echo "Answer command received. Processing answer."
+            # Logic to process the answer (to be implemented)
+            ;;
+        f)
+            echo "Finish command received. Calculating final result."
+            # Logic to calculate and send the final result (to be implemented)
+            ;;
+        *)
+            echo "Invalid command received: $command"
+            ;;
+    esac
+}
+
 # Main script logic
+# step 1
 create_pipe
 if $VERBOSE; then echo "Server is running. Waiting for client input..."; fi
 
-# Example: Read from the pipe (this will block until input is received)
+# Read and process commands from the named pipe
+# step 1
 while true; do
     if read -r line < "$PIPE_NAME"; then
         if $VERBOSE; then echo "Received: $line"; fi
-        # Process the input (to be implemented in later steps)
+        process_command "$line"   # step 2
     fi
 done
-
