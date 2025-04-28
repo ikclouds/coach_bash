@@ -6,6 +6,10 @@
 # This script implements the client-side functionality for the Coach Bash project.
 # It communicates with the server using a named pipe.
 
+# Include the common library functions
+# step 3b
+. "./cbl.sh"
+
 # Default values
 # step 3
 PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
@@ -14,19 +18,24 @@ VERBOSE=false                     # Verbose output flag
 SEND_DELAY=0.05                   # Delay for sending (step 3a)
 SEND_STOP="send_stop"             # Stop sending command (step 3a)
 
+# Error codes
+ERR_NO=0
+ERR_OPTION=1
+ERR_UNKNOWN=6
+
 # Function: Display help
 # step 3
 show_help() {
-    echo "Usage: ./cbc.sh [options] [command]"
-    echo "Options:"
-    echo "  -h, --help      Show this help message and exit"
-    echo "  -p, --pipe      Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
-    echo "  -v, --verbose   Enable verbose output"
-    echo "Commands:"
-    echo "  s               Start the question-answer session"
-    echo "  l               List available questions"
-    echo "  [number]        Request a specific question by number"
-    echo "  q               Quit the session"
+    ui_print "Usage: ./cbc.sh [options] [command]"
+    ui_print "Options:"
+    ui_print "  -h, --help      Show this help message and exit"
+    ui_print "  -p, --pipe      Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
+    ui_print "  -v, --verbose   Enable verbose output"
+    ui_print "Commands:"
+    ui_print "  s               Start the question-answer session"
+    ui_print "  l               List available questions"
+    ui_print "  [number]        Request a specific question by number"
+    ui_print "  q               Quit the session"
 }
 
 # Function: Parse command-line arguments
@@ -34,7 +43,7 @@ show_help() {
 parse_arguments() {
     while [[ "$#" -gt 0 ]]; do
         case $1 in
-            -h|--help) show_help; exit 0 ;;
+            -h|--help) show_help; exit_program $ERR_NO ;;
             -p|--pipe) PIPE_CLIENT="$2"; shift ;;
             -v|--verbose) VERBOSE=true ;;
             *) COMMAND="$1" ;;
@@ -43,30 +52,12 @@ parse_arguments() {
     done
 }
 
-# Function: Create the client named pipe
-# step 3
-create_pipe() {
-    if [[ ! -p "$PIPE_CLIENT" ]]; then
-        $VERBOSE && echo "Creating client named pipe: $PIPE_CLIENT"     # step 3a
-        mkfifo "$PIPE_CLIENT"
-    else
-        $VERBOSE && echo "Client named pipe already exists: $PIPE_CLIENT"   # step 3a
-    fi
-}
-
-# Function: Cleanup resources on exit
-# step 3
-cleanup() {
-    [[ -p "$PIPE_CLIENT" ]] && rm -f "$PIPE_CLIENT"
-    $VERBOSE && echo "Cleaned up client named pipe: $PIPE_CLIENT"   # step 3a
-}
-
 # Function: Send a command to the server
 # step 3
 function send_command() {
     local command="$1"
     if [[ -n "$command" ]]; then
-      $VERBOSE && echo "Sending command to server: $command"
+      verbose_print "Sending command to server: $command"   # step 3b
       echo "$command" > "$PIPE_SERVER"
     fi
 }
@@ -76,13 +67,13 @@ function send_command() {
 function get_response() {
     local response
     while true; do
-        $VERBOSE && echo "Waiting for server response..."   # step 3a
+        verbose_print "Waiting for server response..."   # step 3a,3b
         read -r response < "$PIPE_CLIENT" 
         if [[ "$response" =~ "$SEND_STOP" ]]; then
-            $VERBOSE && echo "The server has stopped sending."  # step 3a
+            verbose_print "The server has stopped sending."  # step 3a,3b
             break
         fi
-        echo "$response"
+        ui_print "$response"    # step 3b
     done
 }
 
@@ -91,37 +82,37 @@ function get_response() {
 process_command() {
     local command="$1"
 
-    $VERBOSE && echo "Entered: $line"
+    verbose_print "Entered: $command"  # step 3b
     case "$command" in
-        s)  echo "Starting question-answer session..." ;;
-        l)  echo "Listing available questions..." 
+        s)  ui_print "Starting question-answer session..." ;;   # step 3b
+        l)  ui_print "Listing available questions..."   # step 3b
             send_command "$command"
             get_response ;;
-        [0-9]*) echo "Requesting question number $command ..."
+        [0-9]*) ui_print "Requesting question number $command ..."  # step 3b
             send_command "$command"
             get_response ;;
-        q)  echo "Quitting the session..." 
-            exit 0 ;;
-        h)  echo "Displaying help..."
+        q)  ui_print "Quitting the session..."  # step 3b
+            exit_program $ERR_NO ;;
+        h)  ui_print "Displaying help..."   # step 3b
             show_help ;;
-        *)  echo "Unknown command: $command" ;;
+        *)  ui_print "Unknown command: $command" ;;     # step 3b
     esac
 }
 
 # step 3
-trap cleanup EXIT          # Set trap to clean up on exit
+trap "cleanup $PIPE_CLIENT" EXIT          # Set trap to clean up on exit, step 3b
 
 # Function: Main script logic
 # step 3
 function main() {          # step 3a
     parse_arguments "$@"   # step 3a
-    create_pipe
-    $VERBOSE && echo "Client is running. Waiting for user input..."
+    create_pipe "$PIPE_CLIENT" "$0"     # step 3b
+    verbose_print "Client is running. Waiting for user input..."    # step 3b
 
     local main_count=1
     local user_input
     while true; do
-        echo "Iteration: $((main_count++))"
+        ui_print "Iteration: $((main_count++))"     # step 3b
         read -p "Enter command: " user_input
         process_command "$user_input"
     done
