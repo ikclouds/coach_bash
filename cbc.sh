@@ -7,24 +7,21 @@
 # It communicates with the server using a named pipe.
 
 # Include the common library functions
-# step 3b
 . "./cbl.sh"
 
 # Default values
-# step 3
 PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
 PIPE_CLIENT="/tmp/cbc_pipe"       # Default named pipe for client
 VERBOSE=false                     # Verbose output flag
-SEND_DELAY=0.05                   # Delay for sending (step 3a)
-SEND_STOP="send_stop"             # Stop sending command (step 3a)
+SEND_DELAY=0.05                   # Delay for sending
+SEND_STOP="send_stop"             # Stop sending command
 
 # Error codes
-ERR_NO=0
-ERR_OPTION=1
-ERR_UNKNOWN=6
+ERR_NO=0                          # No error
+ERR_OPTION=1                      # Invalid command-line option
+ERR_UNKNOWN=6                     # Unknown error
 
 # Function: Display help
-# step 3
 show_help() {
     ui_print "Usage: ./cbc.sh [options] [command]"
     ui_print "Options:"
@@ -39,7 +36,6 @@ show_help() {
 }
 
 # Function: Parse command-line arguments
-# step 3a
 parse_arguments() {
     while [[ "$#" -gt 0 ]]; do
         case $1 in
@@ -53,66 +49,61 @@ parse_arguments() {
 }
 
 # Function: Send a command to the server
-# step 3
 function send_command() {
     local command="$1"
     if [[ -n "$command" ]]; then
-      verbose_print "Sending command to server: $command"   # step 3b
+      verbose_print "Sending command to server: $command"
       echo "$command" > "$PIPE_SERVER"
     fi
 }
 
 # Function: Handle server responses
-# step 3
 function get_response() {
     local response
     while true; do
-        verbose_print "Waiting for server response..."   # step 3a,3b
+        verbose_print "Waiting for server response..."
         read -r response < "$PIPE_CLIENT" 
         if [[ "$response" =~ "$SEND_STOP" ]]; then
-            verbose_print "The server has stopped sending."  # step 3a,3b
+            verbose_print "The server has stopped sending."
             break
         fi
-        ui_print "$response"    # step 3b
+        ui_print "$response"
     done
 }
 
 # Function to process client commands
-# step 3
 process_command() {
     local command="$1"
 
-    verbose_print "Entered: $command"  # step 3b
+    verbose_print "Entered: $command"
     case "$command" in
-        s)  ui_print "Starting question-answer session..." ;;   # step 3b
-        l)  ui_print "Listing available questions..."   # step 3b
+        s)  ui_print "Starting question-answer session..." ;;
+        l)  ui_print "Listing available questions..."
             send_command "$command"
             get_response ;;
-        [0-9]*) ui_print "Requesting question number $command ..."  # step 3b
+        [0-9]*) ui_print "Requesting question number $command ..."
             send_command "$command"
             get_response ;;
-        q)  ui_print "Quitting the session..."  # step 3b
+        q)  ui_print "Quitting the session..."
             exit_program $ERR_NO ;;
-        h)  ui_print "Displaying help..."   # step 3b
+        h)  ui_print "Displaying help..."
             show_help ;;
-        *)  ui_print "Unknown command: $command" ;;     # step 3b
+        *)  ui_print "Unknown command: $command" ;;
     esac
 }
 
-# step 3
-trap "cleanup $PIPE_CLIENT" EXIT          # Set trap to clean up on exit, step 3b
+trap "cleanup $PIPE_CLIENT" EXIT          # Set trap to clean up on exit
 
 # Function: Main script logic
-# step 3
-function main() {          # step 3a
-    parse_arguments "$@"   # step 3a
-    create_pipe "$PIPE_CLIENT" "$0"     # step 3b
-    verbose_print "Client is running. Waiting for user input..."    # step 3b
+function main() {
+    parse_arguments "$@"
+    create_pipe "$PIPE_CLIENT" "$0"
+    verbose_print "Client is running. Waiting for user input..."
 
     local main_count=1
     local user_input
     while true; do
-        ui_print "Iteration: $((main_count++))"     # step 3b
+        ui_print "Iteration: $((main_count++))"
         read -p "Enter command: " user_input
         process_command "$user_input"
     done
