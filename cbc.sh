@@ -13,8 +13,9 @@
 PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
 PIPE_CLIENT="/tmp/cbc_pipe"       # Default named pipe for client
 VERBOSE=false                     # Verbose output flag
-SEND_DELAY=0.05                   # Delay for sending
-SEND_STOP="send_stop"             # Stop sending command
+
+# State variables
+TEST_START_TIME=""                # Test start date-time
 
 # Error codes
 ERR_NO=0                          # No error
@@ -71,13 +72,35 @@ function get_response() {
     done
 }
 
+# Function: Start the test session
+# step 3c
+start_test_session() {
+    verbose_print "Starting question-answer session..."
+    if [[ -z "$TEST_START_TIME" ]]; then
+        send_command "s"                    # Send start command to server
+        TEST_START_TIME=$(get_response)     # Capture the test start date-time
+        ui_print "Test session started at: $TEST_START_TIME"
+    else
+        ui_print "Test session already started..."
+    fi
+}
+
+# Function: Display test start date-time
+# step 3c
+display_test_start_time() {
+    if [[ -n "$TEST_START_TIME" ]]; then
+        ui_print "Test session started at: $TEST_START_TIME"
+    fi
+}
+
 # Function to process client commands
 process_command() {
     local command="$1"
 
+    display_test_start_time  # step 3c
     verbose_print "Entered: $command"
     case "$command" in
-        s)  ui_print "Starting question-answer session..." ;;
+        s)  start_test_session ;;
         l)  ui_print "Listing available questions..."
             send_command "$command"
             get_response ;;

@@ -14,10 +14,11 @@ PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
 PIPE_CLIENT="/tmp/cbc_pipe"       # Default named pipe for client
 QUESTION_FILE="./questions.txt"   # Default question file
 VERBOSE=false                     # Verbose output flag
-SEND_DELAY=0.05                   # Delay for sending
-SEND_STOP="send_stop"             # Stop sending command
 LINE_SEPARATOR="|"                # Line separator for questions
 QUESTION_SEPARATOR="/"            # Question separator
+
+# State variables
+TEST_START_TIME=""                # Test start date-time
 
 # Error codes
 ERR_NO=0                          # No error
@@ -62,6 +63,8 @@ load_questions() {
 send_question() {
     local question_number="$1"
     local question_line="${QUESTIONS[$((question_number - 1))]}"
+
+    echo "Send question number $question_number command received. Sending question..."   # step 3c
     if [[ -z "$question_line" ]]; then
         ui_print "> Error: Question $question_number not found."
         echo "> Error: Question $question_number not found." > "$PIPE_CLIENT"
@@ -79,22 +82,34 @@ send_question() {
           done
       fi
     fi
-    sleep $SEND_DELAY
-    echo "$SEND_STOP" > "$PIPE_CLIENT"
-    verbose_print "Sending complete."
+    send_stop "$PIPE_CLIENT"
 }
 
 # Function: List all questions
 list_questions() {
+    ui_print "List command received. Sending question list..."  # step 3c
     for i in "${!QUESTIONS[@]}"; do
         question_line="${QUESTIONS[$i]}"
         IFS="$LINE_SEPARATOR" read -r number question _ <<< "${QUESTIONS[$i]}"
         ui_print "> Question $((i + 1)): $question"
         echo "> Question $((i + 1)): $question" > "$PIPE_CLIENT"
     done
-    sleep $SEND_DELAY   # critical for timing
-    echo "$SEND_STOP" > "$PIPE_CLIENT"
-    verbose_print "Sending complete."
+    send_stop "$PIPE_CLIENT"
+}
+
+# Function: Start the test session
+# Step 3c
+start_test_session() {
+    ui_print "Start command received. Starting question-answer session..."
+    if [[ -z "$TEST_START_TIME" ]]; then
+        TEST_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+        verbose_print "Test session started at: $TEST_START_TIME"
+    else
+        ui_print "Test session already started at: $TEST_START_TIME"
+    fi
+    echo "$TEST_START_TIME" > "$PIPE_CLIENT"
+    send_stop "$PIPE_CLIENT"
+    # Additional logic for initializing the session can be added here
 }
 
 # Function: Process client commands
@@ -105,15 +120,12 @@ process_command() {
     case "$command" in
         q)  ui_print "Quit command received. Ending session..."
             exit_program $ERR_NO ;;
-        s)  ui_print "Start command received. Starting question-answer session..." ;;
-            # TODO: Logic to start the session (to be implemented)
+        s)  start_test_session ;;   # step 3c
         t)  ui_print "Time command received. Sending remaining time..." ;;
             # TODO: Logic to send remaining time (to be implemented)
-        l)  ui_print "List command received. Sending question list..."
+        l)  list_questions ;;       # step 3c
             # TODO: Implement feature to mark questions as answered
-            list_questions ;;
-        [0-9]*)  echo "Question number $command received."
-            send_question "$command" ;;
+        [0-9]*)  send_question "$command" ;;
         a)  ui_print "Answer command received. Processing answer..." ;;
             # TODO: Logic to process the answer (to be implemented)
         f)  ui_print "Finish command received. Calculating final result..." ;;
