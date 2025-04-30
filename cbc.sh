@@ -13,9 +13,11 @@
 PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
 PIPE_CLIENT="/tmp/cbc_pipe"       # Default named pipe for client
 VERBOSE=false                     # Verbose output flag
+RESPONSE=false                    # Response output flag
 
 # State variables
 TEST_START_TIME=""                # Test start date-time
+LAST_QUESTION=""                  # Last question number
 
 # Error codes
 ERR_NO=0                          # No error
@@ -29,10 +31,17 @@ show_help() {
     ui_print "  -h, --help      Show this help message and exit"
     ui_print "  -p, --pipe      Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
     ui_print "  -v, --verbose   Enable verbose output"
+    show_commands
+}
+
+# Function: Display commands
+# step 3d
+show_commands() {
     ui_print "Commands:"
-    ui_print "  s               Start the question-answer session"
+    ui_print "  [number]        Request a specific question by number 0-99"
+    ui_print "  a               Submit an answer"
     ui_print "  l               List available questions"
-    ui_print "  [number]        Request a specific question by number"
+    ui_print "  s               Start the question-answer session"
     ui_print "  q               Quit the session"
 }
 
@@ -67,13 +76,14 @@ function get_response() {
         if [[ "$response" =~ "$SEND_STOP" ]]; then
             verbose_print "The server has stopped sending."
             break
+        elif [[ "$response" =~ "Error: Question" ]]; then
+            LAST_QUESTION=""
         fi
         ui_print "$response"
     done
 }
 
 # Function: Start the test session
-# step 3c
 start_test_session() {
     verbose_print "Starting question-answer session..."
     if [[ -z "$TEST_START_TIME" ]]; then
@@ -85,8 +95,36 @@ start_test_session() {
     fi
 }
 
+# Function: Get the list of questions
+# step 3d
+function list_questions() {
+    local command="$1"
+    ui_print "Listing available questions..."
+    send_command "$command"
+    get_response
+}
+
+# Function: Get a specific question from the server
+# step 3d
+function get_question () {
+    LAST_QUESTION="$1"
+    ui_print "Requesting question number $LAST_QUESTION ..."
+    send_command "$LAST_QUESTION"
+    get_response
+}
+
+# Function: Submit an answer
+submit_answer() {
+    ui_print "Last question: $LAST_QUESTION"
+    ui_print "Enter your answer (question|answer), e.g. 1|3 or 2|1,3 or 3|my text:" | tr '\n' ' '
+    read -e -i "${LAST_QUESTION}|" -r user_answer
+    send_command "a|$user_answer"
+    local response=$(get_response)
+    [[ "$response" =~ "Server response:" ]] && RESPONSE=true
+    $RESPONSE && ui_print "$response"
+}
+
 # Function: Display test start date-time
-# step 3c
 display_test_start_time() {
     if [[ -n "$TEST_START_TIME" ]]; then
         ui_print "Test session started at: $TEST_START_TIME"
@@ -97,20 +135,16 @@ display_test_start_time() {
 process_command() {
     local command="$1"
 
-    display_test_start_time  # step 3c
+    display_test_start_time
     verbose_print "Entered: $command"
     case "$command" in
         s)  start_test_session ;;
-        l)  ui_print "Listing available questions..."
-            send_command "$command"
-            get_response ;;
-        [0-9]*) ui_print "Requesting question number $command ..."
-            send_command "$command"
-            get_response ;;
+        l)  list_questions "$command" ;;
+        [0-9]|[0-9][0-9]) get_question "$command" ;;
+        a)  submit_answer ;;
         q)  ui_print "Quitting the session..."
             exit_program $ERR_NO ;;
-        h)  ui_print "Displaying help..."
-            show_help ;;
+        h)  show_commands ;;
         *)  ui_print "Unknown command: $command" ;;
     esac
 }
@@ -126,7 +160,7 @@ function main() {
     local main_count=1
     local user_input
     while true; do
-        ui_print "Iteration: $((main_count++))"
+        ui_print "---\nIteration: $((main_count++))"
         read -p "Enter command: " user_input
         process_command "$user_input"
     done
