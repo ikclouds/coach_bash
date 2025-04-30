@@ -108,6 +108,24 @@ list_questions() {
     send_stop "$PIPE_CLIENT"
 }
 
+# Function: Display progress of answers
+# step 3e
+display_progress() {
+    ui_print "Progress command received. Sending progress list..."
+    local progress_list=""
+    for i in "${!QUESTIONS[@]}"; do
+        local question_number=$((i + 1))
+        if [[ " ${!ANSWERED_QUESTIONS[@]} " == *" $question_number "* ]]; then
+            progress_list+="$question_number+ "
+        else
+            progress_list+="$question_number "
+        fi
+    done
+    progress_list=${progress_list% }  # Remove trailing space
+    echo "$progress_list" > "$PIPE_CLIENT"
+    send_stop "$PIPE_CLIENT"
+}
+
 # Function: Start the test session
 start_test_session() {
     ui_print "Start command received. Starting question-answer session..."
@@ -123,7 +141,6 @@ start_test_session() {
 }
 
 # Function: Process an answer
-# step 3d
 process_answer() {
     local answer_data="$1"
     local question_number="${answer_data%%|*}"  # Extract question number
@@ -194,12 +211,12 @@ process_command() {
 
     verbose_print "Received command: $command"
     case "$command" in
-        q)  quit_program ;;         # step 3d
+        q)  quit_program ;;
         s)  start_test_session ;;
         t)  ui_print "Time command received. Sending remaining time..." ;;
             # TODO: Logic to send remaining time (to be implemented)
         l)  list_questions ;;
-            # TODO: Implement feature to mark questions as answered
+        p)  display_progress ;;     # step 3e
         [0-9]*)  send_question "$command" ;;
         a|*)  process_answer "${command#*|}" ;;
         f)  ui_print "Finish command received. Calculating final result..." ;;

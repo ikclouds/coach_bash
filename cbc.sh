@@ -41,6 +41,7 @@ show_commands() {
     ui_print "  [number]        Request a specific question by number 0-99"
     ui_print "  a               Submit an answer"
     ui_print "  l               List available questions"
+    ui_print "  p               List progress of answered questions"
     ui_print "  s               Start the question-answer session"
     ui_print "  q               Quit the session"
 }
@@ -96,7 +97,6 @@ start_test_session() {
 }
 
 # Function: Get the list of questions
-# step 3d
 function list_questions() {
     local command="$1"
     ui_print "Listing available questions..."
@@ -105,7 +105,6 @@ function list_questions() {
 }
 
 # Function: Get a specific question from the server
-# step 3d
 function get_question () {
     LAST_QUESTION="$1"
     ui_print "Requesting question number $LAST_QUESTION ..."
@@ -124,6 +123,15 @@ submit_answer() {
     $RESPONSE && ui_print "$response"
 }
 
+# Function: Display progress of answers
+# step 3e
+display_progress() {
+    ui_print "Requesting progress list from server..."
+    send_command "p"
+    local progress_list=$(get_response)
+    ui_print "Progress: $progress_list"
+}
+
 # Function: Display test start date-time
 display_test_start_time() {
     if [[ -n "$TEST_START_TIME" ]]; then
@@ -140,6 +148,7 @@ process_command() {
     case "$command" in
         s)  start_test_session ;;
         l)  list_questions "$command" ;;
+        p)  display_progress ;;     # step 3e
         [0-9]|[0-9][0-9]) get_question "$command" ;;
         a)  submit_answer ;;
         q)  ui_print "Quitting the session..."
