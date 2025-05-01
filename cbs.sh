@@ -19,9 +19,10 @@ LINE_SEPARATOR=$'|\n'             # Line separator for questions
 QUESTION_SEPARATOR="/"            # Question separator
 
 # State variables
-TEST_START_TIME=""                # Test start date-time
+TEST_START_TIME=                  # Test start date-time
+TEST_DURATION=0                   # Test duration in minutes (0 means no time limit) (step 4)
 ANSWERED_QUESTIONS=()             # Array to track answered questions
-REPEAT_QUESTIONS=()               # Array to track questions marked for later, step 3f
+REPEAT_QUESTIONS=()               # Array to track questions marked for later
 LAST_QUESTION=""                  # Last question number
 
 # Error codes
@@ -48,6 +49,7 @@ parse_arguments() {
             -p|--pipe) PIPE_SERVER="$2"; shift ;;
             -q|--questions) QUESTION_FILE="$2"; shift ;;
             -r|--response) RESPONSE=true ;;
+            -t|--time) TEST_DURATION="$2"; shift ;; # step 4
             -v|--verbose) VERBOSE=true ;;
             *) ui_print "Unknown option: $1"; show_help; exit_program $ERR_OPTION ;;
         esac
@@ -55,6 +57,7 @@ parse_arguments() {
     done
     verbose_print "Response: $RESPONSE"
     verbose_print "Verbose: $VERBOSE"
+    verbose_print "Test duration: $TEST_DURATION minutes"   # step 4
 }
 
 # Function: Load questions from the file
@@ -111,7 +114,6 @@ list_questions() {
 }
 
 # Function: Display progress of answers
-# step 3e
 display_progress() {
     ui_print "Progress command received. Sending progress list..."
     local progress_list=""
@@ -123,7 +125,6 @@ display_progress() {
         else
             progress_list+="$question_number "
         fi
-        # Step 3f
         if [[ " ${!REPEAT_QUESTIONS[@]} " == *" $question_number "* ]]; then
             repeat_list+="$question_number+ "
         fi
@@ -132,12 +133,11 @@ display_progress() {
     repeat_list=${repeat_list% }
     echo "Progress: $progress_list" > "$PIPE_CLIENT"
     sleep $SEND_DELAY
-    echo "Repeat: $repeat_list" > "$PIPE_CLIENT"    # step 3f
+    echo "Repeat: $repeat_list" > "$PIPE_CLIENT"
     send_stop "$PIPE_CLIENT"
 }
 
 # Function: Mark a question for answering later
-# step 3f
 mark_question_for_later() {
     local question_number="$1"
     local message=""
@@ -227,6 +227,60 @@ process_answer() {
     send_stop "$PIPE_CLIENT"
 }
 
+# Function: Calculate remaining time
+# step 4
+calculate_remaining_time() {
+    if [[ "$TEST_DURATION" -gt 0 ]]; then
+        local current_time=$(date '+%s')
+        local start_time=$(date -d "${TEST_START_TIME:=$(date -d@$current_time)}" '+%s')
+        local elapsed_time=$((current_time - start_time))
+        local remaining_time=$((((TEST_DURATION + 1) * 60 - elapsed_time) / 60))
+        echo "$remaining_time"
+    else
+        echo "-1"  # No time limit
+    fi
+}
+
+# Function: Check if time is remaining
+# step 4
+is_time_remaining() {
+    if [[ "$TEST_DURATION" -gt 0 ]]; then
+        local remaining_time=$(calculate_remaining_time)
+        verbose_print "Remaining time: $remaining_time minutes"
+        [[ "$remaining_time" -gt 0 ]]
+    else
+        return 0  # No time limit, always allow
+    fi
+}
+
+# Function: Handle the `t` (time) command
+# step 4
+handle_time_command() {
+    ui_print "Time command received. Sending remaining time..."
+    local remaining_time=$(calculate_remaining_time)
+    if [[ "$remaining_time" -lt 0 ]]; then
+        echo "Test started at: $TEST_START_TIME (No time limit)" > "$PIPE_CLIENT"
+    else
+        echo "Test started at: $TEST_START_TIME" > "$PIPE_CLIENT"
+        sleep $SEND_DELAY
+        echo "Remaining time: $remaining_time minutes" > "$PIPE_CLIENT"
+    fi
+    send_stop "$PIPE_CLIENT"
+}
+
+# Function: Time is up
+# step 4
+time_is_up() {
+    local remaining_time=$(calculate_remaining_time)
+    ui_print "Time is up. No further commands are allowed."
+    if [[ "$remaining_time" -le 0 ]]; then
+        echo "Time is up. No further commands are allowed." > "$PIPE_CLIENT"
+        send_stop "$PIPE_CLIENT"
+        return 1
+    fi
+    return 0
+}
+
 # Function: Quit the program
 function quit_program() {
     ui_print "Quit command received. Ending session..."
@@ -241,13 +295,20 @@ process_command() {
     case "$command" in
         q)  quit_program ;;
         s)  start_test_session ;;
-        t)  ui_print "Time command received. Sending remaining time..." ;;
-            # TODO: Logic to send remaining time (to be implemented)
-        l)  list_questions ;;
+        t)  handle_time_command ;;      # step 4
+        l|a|a\|*|[0-9]*|r|r\|*)
+            if is_time_remaining; then  # step 4
+                case "$command" in
+                    l)  list_questions ;;
+                    a\|*)  process_answer "${command#*|}" ;;
+                    [0-9]*)  send_question "$command" ;;
+                    r\|*)  mark_question_for_later "${command#*|}" ;;
+                esac
+            else
+                time_is_up
+            fi
+            ;;
         p)  display_progress ;;
-        [0-9]*)  send_question "$command" ;;
-        a\|*)  process_answer "${command#*|}" ;;  # step 3f
-        r\|*)  mark_question_for_later "${command#*|}" ;;  # step 3f
         f)  ui_print "Finish command received. Calculating final result..." ;;
             # TODO: Logic to calculate and send the final result (to be implemented)
         *)  ui_print "Invalid command received: $command" ;;

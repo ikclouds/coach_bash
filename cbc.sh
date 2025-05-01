@@ -35,7 +35,6 @@ show_help() {
 }
 
 # Function: Display commands
-# step 3d
 show_commands() {
     ui_print "Commands:"
     ui_print "  [number]        Request a specific question by number 0-99"
@@ -44,6 +43,7 @@ show_commands() {
     ui_print "  p               List progress of answered questions"
     ui_print "  r               Set/Unset (repeat) question for answering later"
     ui_print "  s               Start the question-answer session"
+    ui_print "  t               Get the remaining time to answer"   # step 4
     ui_print "  q               Quit the session"
 }
 
@@ -116,7 +116,7 @@ function get_question () {
 # Function: Submit an answer
 submit_answer() {
     ui_print "Last question: $LAST_QUESTION"
-    ui_print "Examples of answers: 1|3 (one-choice); 2|1,3 (multiple-choice); 3|my answer (text)."  # step 3f
+    ui_print "Examples of answers: 1|3 (one-choice); 2|1,3 (multiple-choice); 3|my answer (text)."
     ui_print "Enter your answer (question|answer):" | tr '\n' ' '
     read -e -i "${LAST_QUESTION}|" -r user_answer
     send_command "a|$user_answer"
@@ -134,7 +134,6 @@ display_progress() {
 }
 
 # Function: Mark a question for answering later
-# step 3f
 mark_question_for_later() {
     local question_number="$1"
 
@@ -148,24 +147,27 @@ mark_question_for_later() {
     ui_print "$response"
 }
 
-# Function: Display test start date-time
-display_test_start_time() {
-    if [[ -n "$TEST_START_TIME" ]]; then
-        ui_print "Test session started at: $TEST_START_TIME"
-    fi
+# Function: Display remaining time
+# step 4
+display_remaining_time() {
+    ui_print "Requesting remaining time from server..."
+    send_command "t"
+    local time_info=$(get_response)
+    ui_print "$time_info"
 }
 
 # Function to process client commands
 process_command() {
     local command="$1"
 
-    display_test_start_time
+    [[ "${command}" != "t" ]] && display_remaining_time # step 4    
     verbose_print "Entered: $command"
     case "$command" in
         s)  start_test_session ;;
         l)  list_questions "$command" ;;
         p)  display_progress ;;
-        r)  mark_question_for_later "$LAST_QUESTION" ;; # step 3f
+        r)  mark_question_for_later "$LAST_QUESTION" ;;
+        t)  display_remaining_time ;;  # step 4
         [0-9]|[0-9][0-9]) get_question "$command" ;;
         a)  submit_answer ;;
         q)  ui_print "Quitting the session..."
