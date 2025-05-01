@@ -21,6 +21,8 @@ QUESTION_SEPARATOR="/"            # Question separator
 # State variables
 TEST_START_TIME=""                # Test start date-time
 ANSWERED_QUESTIONS=()             # Array to track answered questions
+REPEAT_QUESTIONS=()               # Array to track questions marked for later, step 3f
+LAST_QUESTION=""                  # Last question number
 
 # Error codes
 ERR_NO=0                          # No error
@@ -113,6 +115,7 @@ list_questions() {
 display_progress() {
     ui_print "Progress command received. Sending progress list..."
     local progress_list=""
+    local repeat_list=""
     for i in "${!QUESTIONS[@]}"; do
         local question_number=$((i + 1))
         if [[ " ${!ANSWERED_QUESTIONS[@]} " == *" $question_number "* ]]; then
@@ -120,9 +123,34 @@ display_progress() {
         else
             progress_list+="$question_number "
         fi
+        # Step 3f
+        if [[ " ${!REPEAT_QUESTIONS[@]} " == *" $question_number "* ]]; then
+            repeat_list+="$question_number+ "
+        fi
     done
-    progress_list=${progress_list% }  # Remove trailing space
-    echo "$progress_list" > "$PIPE_CLIENT"
+    progress_list=${progress_list% }    # Remove trailing space
+    repeat_list=${repeat_list% }
+    echo "Progress: $progress_list" > "$PIPE_CLIENT"
+    sleep $SEND_DELAY
+    echo "Repeat: $repeat_list" > "$PIPE_CLIENT"    # step 3f
+    send_stop "$PIPE_CLIENT"
+}
+
+# Function: Mark a question for answering later
+# step 3f
+mark_question_for_later() {
+    local question_number="$1"
+    local message=""
+
+    if [[ " ${!REPEAT_QUESTIONS[@]} " != *" $question_number "* ]]; then
+        REPEAT_QUESTIONS+=([$question_number]="1")
+        message="Question $question_number marked for answering later."
+    else
+        unset REPEAT_QUESTIONS[$(($question_number))]
+        message="Question $question_number is not marked for answering later."
+    fi
+    verbose_print "$(declare -p REPEAT_QUESTIONS | sed 's/^declare -a //')"
+    echo "$message" > "$PIPE_CLIENT"
     send_stop "$PIPE_CLIENT"
 }
 
@@ -165,7 +193,7 @@ process_answer() {
     ANSWERED_QUESTIONS["$question_number"]="0"  # Initialize as incorrect
 
     if [[ "$type" == "multiple-choice" || "$type" == "one-choice" ]]; then
-        # Normalize answer for comparison
+        # Normalize answer for comparison, no space is allowed
         user_answer=$(echo "$user_answer" | sed 's/ //g' | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
         correct=$(echo "$correct" | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
         if [[ "${user_answer,,}" == "${correct,,}" ]]; then
@@ -216,9 +244,10 @@ process_command() {
         t)  ui_print "Time command received. Sending remaining time..." ;;
             # TODO: Logic to send remaining time (to be implemented)
         l)  list_questions ;;
-        p)  display_progress ;;     # step 3e
+        p)  display_progress ;;
         [0-9]*)  send_question "$command" ;;
-        a|*)  process_answer "${command#*|}" ;;
+        a\|*)  process_answer "${command#*|}" ;;  # step 3f
+        r\|*)  mark_question_for_later "${command#*|}" ;;  # step 3f
         f)  ui_print "Finish command received. Calculating final result..." ;;
             # TODO: Logic to calculate and send the final result (to be implemented)
         *)  ui_print "Invalid command received: $command" ;;

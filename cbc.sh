@@ -42,6 +42,7 @@ show_commands() {
     ui_print "  a               Submit an answer"
     ui_print "  l               List available questions"
     ui_print "  p               List progress of answered questions"
+    ui_print "  r               Set/Unset (repeat) question for answering later"
     ui_print "  s               Start the question-answer session"
     ui_print "  q               Quit the session"
 }
@@ -115,7 +116,8 @@ function get_question () {
 # Function: Submit an answer
 submit_answer() {
     ui_print "Last question: $LAST_QUESTION"
-    ui_print "Enter your answer (question|answer), e.g. 1|3 or 2|1,3 or 3|my text:" | tr '\n' ' '
+    ui_print "Examples of answers: 1|3 (one-choice); 2|1,3 (multiple-choice); 3|my answer (text)."  # step 3f
+    ui_print "Enter your answer (question|answer):" | tr '\n' ' '
     read -e -i "${LAST_QUESTION}|" -r user_answer
     send_command "a|$user_answer"
     local response=$(get_response)
@@ -124,12 +126,26 @@ submit_answer() {
 }
 
 # Function: Display progress of answers
-# step 3e
 display_progress() {
     ui_print "Requesting progress list from server..."
     send_command "p"
     local progress_list=$(get_response)
-    ui_print "Progress: $progress_list"
+    ui_print "$progress_list"
+}
+
+# Function: Mark a question for answering later
+# step 3f
+mark_question_for_later() {
+    local question_number="$1"
+
+    if [[ -z "$question_number" ]]; then
+        ui_print "Please select question by number."
+        return
+    fi
+    ui_print "Marking question $question_number for answering later..."
+    send_command "r|$question_number"
+    local response=$(get_response)
+    ui_print "$response"
 }
 
 # Function: Display test start date-time
@@ -148,7 +164,8 @@ process_command() {
     case "$command" in
         s)  start_test_session ;;
         l)  list_questions "$command" ;;
-        p)  display_progress ;;     # step 3e
+        p)  display_progress ;;
+        r)  mark_question_for_later "$LAST_QUESTION" ;; # step 3f
         [0-9]|[0-9][0-9]) get_question "$command" ;;
         a)  submit_answer ;;
         q)  ui_print "Quitting the session..."
