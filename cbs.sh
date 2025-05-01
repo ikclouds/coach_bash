@@ -20,7 +20,7 @@ QUESTION_SEPARATOR="/"            # Question separator
 
 # State variables
 TEST_START_TIME=                  # Test start date-time
-TEST_DURATION=0                   # Test duration in minutes (0 means no time limit) (step 4)
+TEST_DURATION=0                   # Test duration in minutes (0 means no time limit)
 ANSWERED_QUESTIONS=()             # Array to track answered questions
 REPEAT_QUESTIONS=()               # Array to track questions marked for later
 LAST_QUESTION=""                  # Last question number
@@ -34,11 +34,12 @@ ERR_UNKNOWN=6                     # Unknown error
 show_help() {
     ui_print "Usage: ./cbs.sh [options]"
     ui_print "Options:"
-    ui_print "  -h, --help      Show this help message and exit"
-    ui_print "  -p, --pipe      Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
-    ui_print "  -q, --questions Specify the question file to use (default: ./questions.txt)"
-    ui_print "  -r, --response  Enable response to client about the correctness of the answer"
-    ui_print "  -v, --verbose   Enable verbose output"
+    ui_print "  -h, --help                   Show this help message and exit"
+    ui_print "  -p file, --pipe file         Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
+    ui_print "  -q file, --questions file    Specify the question file to use (default: ./questions.txt)"
+    ui_print "  -r, --response               Enable response to client about the correctness of the answer"
+    ui_print "  -t n, --time n               Enable time-limited mode for answering questions (n minutes)"
+    ui_print "  -v, --verbose                Enable verbose output"
 }
 
 # Function: Parse command-line arguments
@@ -49,7 +50,7 @@ parse_arguments() {
             -p|--pipe) PIPE_SERVER="$2"; shift ;;
             -q|--questions) QUESTION_FILE="$2"; shift ;;
             -r|--response) RESPONSE=true ;;
-            -t|--time) TEST_DURATION="$2"; shift ;; # step 4
+            -t|--time) TEST_DURATION="$2"; shift ;;
             -v|--verbose) VERBOSE=true ;;
             *) ui_print "Unknown option: $1"; show_help; exit_program $ERR_OPTION ;;
         esac
@@ -57,7 +58,7 @@ parse_arguments() {
     done
     verbose_print "Response: $RESPONSE"
     verbose_print "Verbose: $VERBOSE"
-    verbose_print "Test duration: $TEST_DURATION minutes"   # step 4
+    verbose_print "Test duration: $TEST_DURATION minutes"
 }
 
 # Function: Load questions from the file
@@ -228,7 +229,6 @@ process_answer() {
 }
 
 # Function: Calculate remaining time
-# step 4
 calculate_remaining_time() {
     if [[ "$TEST_DURATION" -gt 0 ]]; then
         local current_time=$(date '+%s')
@@ -242,7 +242,6 @@ calculate_remaining_time() {
 }
 
 # Function: Check if time is remaining
-# step 4
 is_time_remaining() {
     if [[ "$TEST_DURATION" -gt 0 ]]; then
         local remaining_time=$(calculate_remaining_time)
@@ -254,7 +253,6 @@ is_time_remaining() {
 }
 
 # Function: Handle the `t` (time) command
-# step 4
 handle_time_command() {
     ui_print "Time command received. Sending remaining time..."
     local remaining_time=$(calculate_remaining_time)
@@ -269,7 +267,6 @@ handle_time_command() {
 }
 
 # Function: Time is up
-# step 4
 time_is_up() {
     local remaining_time=$(calculate_remaining_time)
     ui_print "Time is up. No further commands are allowed."
@@ -295,9 +292,9 @@ process_command() {
     case "$command" in
         q)  quit_program ;;
         s)  start_test_session ;;
-        t)  handle_time_command ;;      # step 4
+        t)  handle_time_command ;;
         l|a|a\|*|[0-9]*|r|r\|*)
-            if is_time_remaining; then  # step 4
+            if is_time_remaining; then
                 case "$command" in
                     l)  list_questions ;;
                     a\|*)  process_answer "${command#*|}" ;;

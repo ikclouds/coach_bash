@@ -43,7 +43,7 @@ show_commands() {
     ui_print "  p               List progress of answered questions"
     ui_print "  r               Set/Unset (repeat) question for answering later"
     ui_print "  s               Start the question-answer session"
-    ui_print "  t               Get the remaining time to answer"   # step 4
+    ui_print "  t               Get the remaining time to answer"
     ui_print "  q               Quit the session"
 }
 
@@ -148,7 +148,6 @@ mark_question_for_later() {
 }
 
 # Function: Display remaining time
-# step 4
 display_remaining_time() {
     ui_print "Requesting remaining time from server..."
     send_command "t"
@@ -160,14 +159,14 @@ display_remaining_time() {
 process_command() {
     local command="$1"
 
-    [[ "${command}" != "t" ]] && display_remaining_time # step 4    
+    [[ "${command}" != "t" ]] && display_remaining_time   
     verbose_print "Entered: $command"
     case "$command" in
         s)  start_test_session ;;
         l)  list_questions "$command" ;;
         p)  display_progress ;;
         r)  mark_question_for_later "$LAST_QUESTION" ;;
-        t)  display_remaining_time ;;  # step 4
+        t)  display_remaining_time ;;
         [0-9]|[0-9][0-9]) get_question "$command" ;;
         a)  submit_answer ;;
         q)  ui_print "Quitting the session..."
