@@ -12,18 +12,21 @@
 # Default values
 PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
 PIPE_CLIENT="/tmp/cbc_pipe"       # Default named pipe for client
-QUESTION_FILE="./course.txt"      # Default question file for the course
-DESCRIPTION_FILE="./course.des"   # Default description file for the course
+RESULTS_FOLDER="./results"        # Folder to store results (step 5a)
+COURSES_FOLDER="./courses"        # Folder to store courses (step 5a)
+QUESTION_FILE="./$COURSES_FOLDER/course.txt"      # Default question file for the course
+DESCRIPTION_FILE="./$COURSES_FOLDER/course.des"   # Default description file for the course
 VERBOSE=false                     # Verbose output flag
 RESPONSE=false                    # Response output flag
+NUM_SEPARATOR=$'|'                # Number separator for questions (step 5a)
 LINE_SEPARATOR=$'|\n'             # Line separator for questions
 QUESTION_SEPARATOR="/"            # Question separator
 
 # State variables
-USERNAME=""                       # Username of the client  (step 5)
-TOPIC=""                          # Topic (course code)  (step 5)
-COURSE_NAME=""                    # Course name  (step 5)
-DIFFICULTY_NAME=""                # Difficulty name  (step 5)
+USERNAME=""                       # Username of the client  (step 5a)
+TOPIC=""                          # Topic (course code)  (step 5a)
+COURSE_NAME=""                    # Course name  (step 5a)
+DIFFICULTY_NAME=""                # Difficulty name  (step 5a)
 TEST_START_TIME=                  # Test start date-time
 TEST_DURATION=0                   # Test duration in minutes (0 means no time limit)
 ANSWERED_QUESTIONS=()             # Array to track answered questions
@@ -33,11 +36,11 @@ LAST_QUESTION=""                  # Last question number
 # Error codes
 ERR_NO=0                          # No error
 ERR_OPTION=1                      # Invalid command-line option
-ERR_FILE=2                        # Invalid file name   (step 5)
+ERR_FILE=2                        # Invalid file name
 ERR_UNKNOWN=6                     # Unknown error
 
 # Function: Display help
-show_help() {
+function show_help() {
     ui_print "Usage: ./cbs.sh [options]"
     ui_print "Options:"
     ui_print "  -h, --help                   Show this help message and exit"
@@ -46,12 +49,12 @@ show_help() {
     ui_print "  -d file, --description file  Specify the description file to use (default: ./course_des.txt)"
     ui_print "  -r, --response               Enable response to client about the correctness of the answer"
     ui_print "  -t n, --time n               Enable time-limited mode for answering questions (n minutes)"
-    ui_print "  -u, --username               Specify username (required)"  # step 5
+    ui_print "  -u, --username               Specify username (required)"
     ui_print "  -v, --verbose                Enable verbose output"
 }
 
 # Function: Parse command-line arguments
-parse_arguments() {
+function parse_arguments() {
     while [[ "$#" -gt 0 ]]; do
         case $1 in
             -d|--description) DESCRIPTION_FILE="$2"; shift ;;
@@ -60,7 +63,7 @@ parse_arguments() {
             -q|--questions) QUESTION_FILE="$2"; shift ;;
             -r|--response) RESPONSE=true ;;
             -t|--time) TEST_DURATION="$2"; shift ;;
-            -u|--username) USERNAME="$2"; shift ;;  # step 5
+            -u|--username) USERNAME="$2"; shift ;;
             -v|--verbose) VERBOSE=true ;;
             *) ui_print "Unknown option: $1"; show_help; exit_program $ERR_OPTION ;;
         esac
@@ -80,7 +83,7 @@ parse_arguments() {
 }
 
 # Function: Load course description
-load_course_description() {
+function load_course_description() {
     if [[ ! -f "$DESCRIPTION_FILE" ]]; then
         ui_print "Error: Course description file not found: $DESCRIPTION_FILE"
         exit_program $ERR_FILE
@@ -101,7 +104,7 @@ load_course_description() {
 }
 
 # Function: Load questions from the file
-load_questions() {
+function load_questions() {
     if [[ ! -f "$QUESTION_FILE" ]]; then
         ui_print "Error: Question file not found: $QUESTION_FILE"
         exit_program $ERR_FILE
@@ -111,7 +114,7 @@ load_questions() {
 }
 
 # Function: Send a question to the client
-send_question() {
+function send_question() {
     local question_number="$1"
     local question_line="${QUESTIONS[$((question_number - 1))]}"
 
@@ -142,7 +145,7 @@ send_question() {
 }
 
 # Function: List all questions
-list_questions() {
+function list_questions() {
     ui_print "List command received. Sending question list..."
     for i in "${!QUESTIONS[@]}"; do
         question_line="${QUESTIONS[$i]}"
@@ -154,7 +157,7 @@ list_questions() {
 }
 
 # Function: Display progress of answers
-display_progress() {
+function display_progress() {
     ui_print "Progress command received. Sending progress list..."
     local progress_list=""
     local repeat_list=""
@@ -178,10 +181,9 @@ display_progress() {
 }
 
 # Function: List all questions
-# step 5
-send_session_info() {
+function send_session_info() {
     ui_print "Get session information. Sending session info..."
-    echo -e "Username: ${USERNAME}\n${COURSE_NAME} (${DIFFICULTY_NAME})" | \
+    echo -e "Username: ${USERNAME}\nCourse: ${COURSE_NAME} (Difficulty: ${DIFFICULTY_NAME})" | \
     while read -r session; do
         ui_print "$session"
         echo "$session" > "$PIPE_CLIENT"
@@ -190,7 +192,7 @@ send_session_info() {
 }
 
 # Function: Mark a question for answering later
-mark_question_for_later() {
+function mark_question_for_later() {
     local question_number="$1"
     local message=""
 
@@ -207,7 +209,7 @@ mark_question_for_later() {
 }
 
 # Function: Start the test session
-start_test_session() {
+function start_test_session() {
     ui_print "Start command received. Starting question-answer session..."
     if [[ -z "$TEST_START_TIME" ]]; then
         TEST_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
@@ -223,7 +225,7 @@ start_test_session() {
 }
 
 # Function: Process an answer
-process_answer() {
+function process_answer() {
     local answer_data="$1"
     local question_number="${answer_data%%|*}"  # Extract question number
     local user_answer="${answer_data#*|}"       # Extract user answer
@@ -282,12 +284,13 @@ process_answer() {
 }
 
 # Function: Calculate remaining time
-calculate_remaining_time() {
+function calculate_remaining_time() {
     if [[ "$TEST_DURATION" -gt 0 ]]; then
         local current_time=$(date '+%s')
         local start_time=$(date -d "${TEST_START_TIME:=$(date -d@$current_time)}" '+%s')
         local elapsed_time=$((current_time - start_time))
-        local remaining_time=$((((TEST_DURATION + 1) * 60 - elapsed_time) / 60))
+        local remaining_time=$((((TEST_DURATION) * 60 - elapsed_time) / 60))
+        [[ -n $TEST_START_TIME ]] && ((remaining_time++)) # Add 1 minute for the first minute
         echo "$remaining_time"
     else
         echo "-1"  # No time limit
@@ -295,7 +298,7 @@ calculate_remaining_time() {
 }
 
 # Function: Check if time is remaining
-is_time_remaining() {
+function is_time_remaining() {
     if [[ "$TEST_DURATION" -gt 0 ]]; then
         local remaining_time=$(calculate_remaining_time)
         verbose_print "Remaining time: $remaining_time minutes"
@@ -305,8 +308,19 @@ is_time_remaining() {
     fi
 }
 
+# Function: Check if session is started
+# step 5a
+function is_session_started() {
+    if [[ -z "$TEST_START_TIME" ]]; then
+        return 1
+    else
+        return 0
+    fi
+    
+}
+
 # Function: Handle the `t` (time) command
-handle_time_command() {
+function handle_time_command() {
     ui_print "Time command received. Sending remaining time..."
     local remaining_time=$(calculate_remaining_time)
     if [[ "$remaining_time" -lt 0 ]]; then
@@ -320,7 +334,7 @@ handle_time_command() {
 }
 
 # Function: Time is up
-time_is_up() {
+function time_is_up() {
     local remaining_time=$(calculate_remaining_time)
     ui_print "Time is up. No further commands are allowed."
     if [[ "$remaining_time" -le 0 ]]; then
@@ -331,6 +345,69 @@ time_is_up() {
     return 0
 }
 
+# Function: Calculate time taken
+# step 5a
+calculate_time_taken() {
+    local current_time=$(date '+%s')
+    local start_time=$(date -d "$TEST_START_TIME" '+%s')
+    echo $(((current_time - start_time) / 60 + 1))
+}
+
+# Function: Calculate the final result
+# step 5a
+calculate_final_result() {
+    ui_print "Finish command received. Calculating final result..."
+
+    # Calculate the percentage of correct answers
+    local total_questions=${#QUESTIONS[@]}
+    local correct_answers=0
+    for question_number in "${!ANSWERED_QUESTIONS[@]}"; do
+        if [[ "${ANSWERED_QUESTIONS[$question_number]}" == "1" ]]; then
+            ((correct_answers++))
+        fi
+    done
+    local percentage=$((correct_answers * 100 / total_questions))
+
+    # Generate the user's results file
+    local timestamp=$(date -d "$TEST_START_TIME" '+%Y%m%d_%H%M')
+    local result_file="${USERNAME}_${TOPIC}_${timestamp}.txt"
+    verbose_print "Generating user's results file: $result_file"
+
+    {
+        echo "Username: $USERNAME"
+        echo "Course: $COURSE_NAME"
+        echo "Difficulty: $DIFFICULTY_NAME"
+        echo "Test Start Time: $TEST_START_TIME"
+        echo "Total Questions: $total_questions"
+        echo "Correct Answers: $correct_answers"
+        echo "Final Result: $percentage%"
+        echo "Time Taken: $(calculate_time_taken) minutes"
+        echo ""
+        echo "Questions and Statuses:"
+        for i in "${!QUESTIONS[@]}"; do
+            local question_number=$((i + 1))
+            local status="Unanswered"
+            if [[ -n "${ANSWERED_QUESTIONS[$question_number]}" ]]; then
+                status=$([[ "${ANSWERED_QUESTIONS[$question_number]}" == "1" ]] && echo "Correct" || echo "Incorrect")
+            fi
+            local question="$(echo ${QUESTIONS[$i]} | cut -d'|' -f2)"
+            echo "Question $question_number: $status: $question"
+        done
+    } > "./$RESULTS_FOLDER/$result_file"
+
+    # Send the final result to the client
+    echo "Final Result: $percentage%" > "$PIPE_CLIENT"
+    send_stop "$PIPE_CLIENT"
+}
+
+# Function: Session is not started
+# step 5a
+function session_is_not_started() {
+    ui_print "Session not started. Please start the session first."
+    echo "Session not started. Please start the session first." > "$PIPE_CLIENT"
+    send_stop "$PIPE_CLIENT"
+}
+
 # Function: Quit the program
 function quit_program() {
     ui_print "Quit command received. Ending session..."
@@ -338,17 +415,20 @@ function quit_program() {
 }
 
 # Function: Process client commands
-process_command() {
+function process_command() {
     local command="$1"
 
     verbose_print "Received command: $command"
     case "$command" in
         q)  quit_program ;;
-        i)  send_session_info ;;    # step 5
+        i)  send_session_info ;;
         s)  start_test_session ;;
         t)  handle_time_command ;;
         l|a|a\|*|[0-9]*|r|r\|*)
-            if is_time_remaining; then
+            if ! is_session_started; then  # step 5a
+                session_is_not_started
+                return 1
+            elif is_time_remaining; then
                 case "$command" in
                     l)  list_questions ;;
                     a\|*)  process_answer "${command#*|}" ;;
@@ -360,8 +440,9 @@ process_command() {
             fi
             ;;
         p)  display_progress ;;
-        f)  ui_print "Finish command received. Calculating final result..." ;;
-            # TODO: Logic to calculate and send the final result (to be implemented)
+        f)  calculate_final_result  # step 5a
+            quit_program 
+            ;;
         *)  ui_print "Invalid command received: $command" ;;
     esac
 }

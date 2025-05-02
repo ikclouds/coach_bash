@@ -16,8 +16,8 @@ VERBOSE=false                     # Verbose output flag
 RESPONSE=false                    # Response output flag
 
 # State variables
-USERNAME=""                       # Username of the client (step 5)
-SESSION=""                        # Session info from the server (step 5)
+USERNAME=""                       # Username of the client
+SESSION=""                        # Session info from the server
 TEST_START_TIME=""                # Test start date-time
 LAST_QUESTION=""                  # Last question number
 
@@ -27,18 +27,18 @@ ERR_OPTION=1                      # Invalid command-line option
 ERR_UNKNOWN=6                     # Unknown error
 
 # Function: Display help
-show_help() {
+function show_help() {
     ui_print "Usage: ./cbc.sh [options] [command]"
     ui_print "Options:"
     ui_print "  -h, --help      Show this help message and exit"
     ui_print "  -p, --pipe      Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
-    ui_print "  -u, --username  Specify username (required)"  # step 5
+    ui_print "  -u, --username  Specify username (required)"
     ui_print "  -v, --verbose   Enable verbose output"
     show_commands
 }
 
 # Function: Display commands
-show_commands() {
+function show_commands() {
     ui_print "Commands:"
     ui_print "  [number]        Request a specific question by number 0-99"
     ui_print "  a               Submit an answer"
@@ -51,7 +51,7 @@ show_commands() {
 }
 
 # Function: Parse command-line arguments
-parse_arguments() {
+function parse_arguments() {
     while [[ "$#" -gt 0 ]]; do
         case $1 in
             -h|--help) show_help; exit_program $ERR_NO ;;
@@ -98,7 +98,7 @@ function get_response() {
 }
 
 # Function: Start the test session
-start_test_session() {
+function start_test_session() {
     verbose_print "Starting question-answer session..."
     if [[ -z "$TEST_START_TIME" ]]; then
         send_command "s"                    # Send start command to server
@@ -126,7 +126,11 @@ function get_question () {
 }
 
 # Function: Submit an answer
-submit_answer() {
+function submit_answer() {
+    if [[ -z "$TEST_START_TIME" ]]; then  # step 5a
+        ui_print "Error: No session started. Please start a session first."
+        return 1
+    fi
     ui_print "Last question: $LAST_QUESTION"
     ui_print "Examples of answers: 1|3 (one-choice); 2|1,3 (multiple-choice); 3|my answer (text)."
     ui_print "Enter your answer (question|answer):" | tr '\n' ' '
@@ -138,7 +142,7 @@ submit_answer() {
 }
 
 # Function: Display progress of answers
-display_progress() {
+function display_progress() {
     ui_print "Requesting progress list from server..."
     send_command "p"
     local progress_list=$(get_response)
@@ -146,7 +150,7 @@ display_progress() {
 }
 
 # Function: Mark a question for answering later
-mark_question_for_later() {
+function mark_question_for_later() {
     local question_number="$1"
 
     if [[ -z "$question_number" ]]; then
@@ -160,7 +164,7 @@ mark_question_for_later() {
 }
 
 # Function: Display remaining time
-display_remaining_time() {
+function display_remaining_time() {
     ui_print "Requesting remaining time from server..."
     send_command "t"
     local time_info=$(get_response)
@@ -168,8 +172,7 @@ display_remaining_time() {
 }
 
 # Function: Display course information
-# step 5
-display_session_info() {
+function display_session_info() {
     ui_print "Requesting session info from server..."
     send_command "i"
     local session_info=$(get_response)
@@ -181,11 +184,27 @@ display_session_info() {
     ui_print "$SESSION"
 }
 
+# Function: Finish the session
+# step 5a
+finish_session() {
+    ui_print "Ending the session and requesting final result..."
+    send_command "f"
+    local final_result=$(get_response)
+    ui_print "$final_result"
+}
+
+# Function: Quit the program
+# step 5a
+function quit_program() {
+    ui_print "Quit command received. Ending session..."
+    exit_program $ERR_NO
+}
+
 # Function to process client commands
-process_command() {
+function process_command() {
     local command="$1"
 
-    [[ ! "ts" =~ "${command}" ]] && display_remaining_time  # step 5
+    [[ ! "ts" =~ "${command}" ]] && display_remaining_time
     verbose_print "Entered: $command"
     case "$command" in
         s)  start_test_session ;;
@@ -195,8 +214,10 @@ process_command() {
         t)  display_remaining_time ;;
         [0-9]|[0-9][0-9]) get_question "$command" ;;
         a)  submit_answer ;;
-        q)  ui_print "Quitting the session..."
-            exit_program $ERR_NO ;;
+        f)  finish_session    # step 5a
+            quit_program
+            ;;
+        q)  quit_program ;;   # step 5a
         h)  show_commands ;;
         *)  ui_print "Unknown command: $command" ;;
     esac
@@ -214,7 +235,7 @@ function main() {
     local user_input
     while true; do
         ui_print "---\nIteration: $((main_count++))"
-        display_session_info  # step 5
+        display_session_info
         read -p "Enter command: " user_input
         process_command "$user_input"
     done
