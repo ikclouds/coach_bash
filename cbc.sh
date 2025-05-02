@@ -16,6 +16,8 @@ VERBOSE=false                     # Verbose output flag
 RESPONSE=false                    # Response output flag
 
 # State variables
+USERNAME=""                       # Username of the client (step 5)
+SESSION=""                        # Session info from the server (step 5)
 TEST_START_TIME=""                # Test start date-time
 LAST_QUESTION=""                  # Last question number
 
@@ -30,6 +32,7 @@ show_help() {
     ui_print "Options:"
     ui_print "  -h, --help      Show this help message and exit"
     ui_print "  -p, --pipe      Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
+    ui_print "  -u, --username  Specify username (required)"  # step 5
     ui_print "  -v, --verbose   Enable verbose output"
     show_commands
 }
@@ -53,11 +56,20 @@ parse_arguments() {
         case $1 in
             -h|--help) show_help; exit_program $ERR_NO ;;
             -p|--pipe) PIPE_CLIENT="$2"; shift ;;
+            -u|--username) USERNAME="$2"; shift ;;
             -v|--verbose) VERBOSE=true ;;
             *) COMMAND="$1" ;;
         esac
         shift
     done
+
+    # Validate username
+    if [[ -z "$USERNAME" ]]; then
+        ui_print "Error: Username is required. Use the -u option to specify it."
+        exit_program $ERR_OPTION
+    fi
+
+    verbose_print "Username: $USERNAME"
 }
 
 # Function: Send a command to the server
@@ -155,11 +167,25 @@ display_remaining_time() {
     ui_print "$time_info"
 }
 
+# Function: Display course information
+# step 5
+display_session_info() {
+    ui_print "Requesting session info from server..."
+    send_command "i"
+    local session_info=$(get_response)
+    if [[ -z "$session_info" ]]; then
+        ui_print "Error: Unable to retrieve session info."
+        return
+    fi
+    SESSION="$session_info"
+    ui_print "$SESSION"
+}
+
 # Function to process client commands
 process_command() {
     local command="$1"
 
-    [[ "${command}" != "t" ]] && display_remaining_time   
+    [[ ! "ts" =~ "${command}" ]] && display_remaining_time  # step 5
     verbose_print "Entered: $command"
     case "$command" in
         s)  start_test_session ;;
@@ -188,6 +214,7 @@ function main() {
     local user_input
     while true; do
         ui_print "---\nIteration: $((main_count++))"
+        display_session_info  # step 5
         read -p "Enter command: " user_input
         process_command "$user_input"
     done

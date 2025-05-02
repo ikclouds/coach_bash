@@ -12,13 +12,18 @@
 # Default values
 PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
 PIPE_CLIENT="/tmp/cbc_pipe"       # Default named pipe for client
-QUESTION_FILE="./questions.txt"   # Default question file
+QUESTION_FILE="./course.txt"      # Default question file for the course
+DESCRIPTION_FILE="./course.des"   # Default description file for the course
 VERBOSE=false                     # Verbose output flag
 RESPONSE=false                    # Response output flag
 LINE_SEPARATOR=$'|\n'             # Line separator for questions
 QUESTION_SEPARATOR="/"            # Question separator
 
 # State variables
+USERNAME=""                       # Username of the client  (step 5)
+TOPIC=""                          # Topic (course code)  (step 5)
+COURSE_NAME=""                    # Course name  (step 5)
+DIFFICULTY_NAME=""                # Difficulty name  (step 5)
 TEST_START_TIME=                  # Test start date-time
 TEST_DURATION=0                   # Test duration in minutes (0 means no time limit)
 ANSWERED_QUESTIONS=()             # Array to track answered questions
@@ -28,6 +33,7 @@ LAST_QUESTION=""                  # Last question number
 # Error codes
 ERR_NO=0                          # No error
 ERR_OPTION=1                      # Invalid command-line option
+ERR_FILE=2                        # Invalid file name   (step 5)
 ERR_UNKNOWN=6                     # Unknown error
 
 # Function: Display help
@@ -36,9 +42,11 @@ show_help() {
     ui_print "Options:"
     ui_print "  -h, --help                   Show this help message and exit"
     ui_print "  -p file, --pipe file         Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
-    ui_print "  -q file, --questions file    Specify the question file to use (default: ./questions.txt)"
+    ui_print "  -q file, --questions file    Specify the question file to use (default: ./course.txt)"
+    ui_print "  -d file, --description file  Specify the description file to use (default: ./course_des.txt)"
     ui_print "  -r, --response               Enable response to client about the correctness of the answer"
     ui_print "  -t n, --time n               Enable time-limited mode for answering questions (n minutes)"
+    ui_print "  -u, --username               Specify username (required)"  # step 5
     ui_print "  -v, --verbose                Enable verbose output"
 }
 
@@ -46,19 +54,50 @@ show_help() {
 parse_arguments() {
     while [[ "$#" -gt 0 ]]; do
         case $1 in
+            -d|--description) DESCRIPTION_FILE="$2"; shift ;;
             -h|--help) show_help; exit_program $ERR_NO ;;
             -p|--pipe) PIPE_SERVER="$2"; shift ;;
             -q|--questions) QUESTION_FILE="$2"; shift ;;
             -r|--response) RESPONSE=true ;;
             -t|--time) TEST_DURATION="$2"; shift ;;
+            -u|--username) USERNAME="$2"; shift ;;  # step 5
             -v|--verbose) VERBOSE=true ;;
             *) ui_print "Unknown option: $1"; show_help; exit_program $ERR_OPTION ;;
         esac
         shift
     done
+
+    # Validate username
+    if [[ -z "$USERNAME" ]]; then
+        ui_print "Error: Username is required. Use the -u option to specify it."
+        exit_program $ERR_OPTION
+    fi
+
+    verbose_print "Username: $USERNAME"
     verbose_print "Response: $RESPONSE"
     verbose_print "Verbose: $VERBOSE"
     verbose_print "Test duration: $TEST_DURATION minutes"
+}
+
+# Function: Load course description
+load_course_description() {
+    if [[ ! -f "$DESCRIPTION_FILE" ]]; then
+        ui_print "Error: Course description file not found: $DESCRIPTION_FILE"
+        exit_program $ERR_FILE
+    fi
+
+    verbose_print "Loading course description from file: $DESCRIPTION_FILE"
+    local course_line
+    course_line=$(grep -E "^$TOPIC|" "$DESCRIPTION_FILE")
+    if [[ -z "$course_line" ]]; then
+        ui_print "Error: Topic '$TOPIC' not found in course description file."
+        exit_program $ERR_FILE
+    fi
+
+    IFS='|' read -r TOPIC COURSE_NAME DIFFICULTY_NAME <<< "$course_line"
+    verbose_print "$TOPIC"
+    verbose_print "$COURSE_NAME"
+    verbose_print "$DIFFICULTY_NAME"
 }
 
 # Function: Load questions from the file
@@ -138,6 +177,18 @@ display_progress() {
     send_stop "$PIPE_CLIENT"
 }
 
+# Function: List all questions
+# step 5
+send_session_info() {
+    ui_print "Get session information. Sending session info..."
+    echo -e "Username: ${USERNAME}\n${COURSE_NAME} (${DIFFICULTY_NAME})" | \
+    while read -r session; do
+        ui_print "$session"
+        echo "$session" > "$PIPE_CLIENT"
+    done
+    send_stop "$PIPE_CLIENT"
+}
+
 # Function: Mark a question for answering later
 mark_question_for_later() {
     local question_number="$1"
@@ -164,6 +215,8 @@ start_test_session() {
     else
         ui_print "Test session already started at: $TEST_START_TIME"
     fi
+
+    local course
     echo "$TEST_START_TIME" > "$PIPE_CLIENT"
     send_stop "$PIPE_CLIENT"
     # Additional logic for initializing the session can be added here
@@ -291,6 +344,7 @@ process_command() {
     verbose_print "Received command: $command"
     case "$command" in
         q)  quit_program ;;
+        i)  send_session_info ;;    # step 5
         s)  start_test_session ;;
         t)  handle_time_command ;;
         l|a|a\|*|[0-9]*|r|r\|*)
@@ -318,8 +372,9 @@ trap "cleanup $PIPE_SERVER" EXIT
 # Function: Main script logic
 function main() {
     parse_arguments "$@"
-    create_pipe "$PIPE_SERVER" "$0"
+    load_course_description
     load_questions
+    create_pipe "$PIPE_SERVER" "$0"
     verbose_print "Server is running. Waiting for client input..."
 
     local main_count=1
