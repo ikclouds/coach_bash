@@ -51,8 +51,6 @@ function show_help() {
     ui_print "  -t n, --time n               Enable time-limited mode for answering questions (n minutes)"
     ui_print "  -u, --username               Specify username (required)"
     ui_print "  -v, --verbose                Enable verbose output"
-
-    exit_program $ERR_NO
 }
 
 # Function: Parse command-line arguments
@@ -60,14 +58,16 @@ function parse_arguments() {
     while [[ "$#" -gt 0 ]]; do
         case $1 in
             -d|--description) DESCRIPTION_FILE="$2"; shift ;;
-            -h|--help) show_help ;;
+            -h|--help) show_help; exit_program $ERR_NO ;;
             -p|--pipe) PIPE_SERVER="$2"; shift ;;
             -q|--questions) QUESTION_FILE="$2"; shift ;;
             -r|--response) RESPONSE=true ;;
             -t|--time) TEST_DURATION="$2"; shift ;;
             -u|--username) USERNAME="$2"; shift ;;
             -v|--verbose) VERBOSE=true ;;
-            *) ui_print "Unknown option: $1"; show_help; exit_program $ERR_OPTION ;;
+            *)  show_help
+                ui_print "Unknown option: $1"
+                exit_program $ERR_OPTION ;;
         esac
         shift
     done

@@ -35,8 +35,6 @@ function show_help() {
     ui_print "  -u, --username  Specify username (required)"
     ui_print "  -v, --verbose   Enable verbose output"
     show_commands
-
-    exit_program $ERR_NO
 } 
 
 # Function: Display commands
@@ -58,11 +56,13 @@ function show_commands() {
 function parse_arguments() {
     while [[ "$#" -gt 0 ]]; do
         case $1 in
-            -h|--help) show_help ;;
+            -h|--help) show_help; exit_program $ERR_NO ;;
             -p|--pipe) PIPE_CLIENT="$2"; shift ;;
             -u|--username) USERNAME="$2"; shift ;;
             -v|--verbose) VERBOSE=true ;;
-            *) COMMAND="$1" ;;
+            *)  show_help
+                ui_print "Unknown option: $1"
+                exit_program $ERR_OPTION ;;
         esac
         shift
     done
@@ -126,7 +126,7 @@ function list_questions() {
 # Function: Get a specific question from the server
 function get_question () {
     LAST_QUESTION="$1"
-    
+
     verbose_print "Requesting question number $LAST_QUESTION ..."
     send_command "$LAST_QUESTION"
     get_response
