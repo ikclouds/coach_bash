@@ -100,9 +100,9 @@ function load_course_description() {
     fi
 
     IFS='|' read -r TOPIC COURSE_NAME DIFFICULTY_NAME <<< "$course_line"
-    verbose_print "$TOPIC"
-    verbose_print "$COURSE_NAME"
-    verbose_print "$DIFFICULTY_NAME"
+    verbose_print "Topic: $TOPIC"
+    verbose_print "Course: $COURSE_NAME"
+    verbose_print "Difficulty: $DIFFICULTY_NAME"
 }
 
 # Function: Load questions from the file
@@ -122,23 +122,21 @@ function send_question() {
 
     ui_print "Send question number $question_number command received. Sending question..."
     if [[ -z "$question_line" ]]; then
-        ui_print "> Error: Question $question_number not found."
-        echo "> Error: Question $question_number not found." > "$PIPE_CLIENT"
+        local message="> Error: Question $question_number not found."
+        ui_print "$message" | tee "$PIPE_CLIENT"
     else
       verbose_print "Sending question $question_number to client..."
       IFS="$LINE_SEPARATOR" read -t 1 -r number question type options correct <<< "$question_line"
       if [[ "$type" == "text" ]]; then
-        ui_print "> Question $question_number| $question $options ($type)"
-        echo "> Question $question_number| $question $options ($type)" > "$PIPE_CLIENT"
+        local message "> Question $question_number| $question $options ($type)"
       else
-        ui_print "> Question $question_number| $question ($type)"
-        echo "> Question $question_number| $question ($type)" > "$PIPE_CLIENT"
+        local message="> Question $question_number| $question ($type)"
       fi
+      ui_print "$message" | tee "$PIPE_CLIENT"
       if [[ "$type" == "multiple-choice" || "$type" == "one-choice" ]]; then
           local option
           echo "$options" | while read -d "$QUESTION_SEPARATOR" -r option; do
-              ui_print "> $option"
-              echo "> $option" > "$PIPE_CLIENT"
+              ui_print "> $option" | tee "$PIPE_CLIENT"
               sleep $SEND_DELAY
           done
       fi
@@ -152,8 +150,9 @@ function list_questions() {
     for i in "${!QUESTIONS[@]}"; do
         question_line="${QUESTIONS[$i]}"
         IFS="$LINE_SEPARATOR" read -r number question _ <<< "${QUESTIONS[$i]}"
-        ui_print "> Question $((i + 1))| $question"
-        echo "> Question $((i + 1))| $question" > "$PIPE_CLIENT"
+        local message="> Question $((i + 1))| $question"
+        ui_print "$message" | tee "$PIPE_CLIENT"
+        sleep $SEND_DELAY
     done
     send_stop "$PIPE_CLIENT"
 }
@@ -163,6 +162,7 @@ function display_progress() {
     ui_print "Progress command received. Sending progress list..."
     local progress_list=""
     local repeat_list=""
+
     for i in "${!QUESTIONS[@]}"; do
         local question_number=$((i + 1))
         if [[ " ${!ANSWERED_QUESTIONS[@]} " == *" $question_number "* ]]; then
@@ -187,8 +187,8 @@ function send_session_info() {
     ui_print "Get session information. Sending session info..."
     echo -e "Username: ${USERNAME}\nCourse: ${COURSE_NAME} (Difficulty: ${DIFFICULTY_NAME})" | \
     while read -r session; do
-        ui_print "$session"
-        echo "$session" > "$PIPE_CLIENT"
+        ui_print "$session" | tee "$PIPE_CLIENT"
+        sleep $SEND_DELAY
     done
     send_stop "$PIPE_CLIENT"
 }
@@ -220,10 +220,8 @@ function start_test_session() {
         ui_print "Test session already started at: $TEST_START_TIME"
     fi
 
-    local course
     echo "$TEST_START_TIME" > "$PIPE_CLIENT"
     send_stop "$PIPE_CLIENT"
-    # Additional logic for initializing the session can be added here
 }
 
 # Function: Process an answer
@@ -244,7 +242,7 @@ function process_answer() {
 
     # Validate the answer
     local question_line="${QUESTIONS[$((question_number - 1))]}"
-    local correct=""    # Correct answer
+    local correct=""                            # Correct answer
     IFS="$LINE_SEPARATOR" read -r number question type options correct <<< "$question_line"
 
     local response="Incorrect"                  # Default response
@@ -312,18 +310,16 @@ function is_time_remaining() {
 
 # Function: Check if session is started
 function is_session_started() {
-    if [[ -z "$TEST_START_TIME" ]]; then
-        return 1
-    else
-        return 0
-    fi
-    
+    [[ -z "$TEST_START_TIME" ]] \
+        && return 1 \
+        || return 0
 }
 
 # Function: Handle the `t` (time) command
 function handle_time_command() {
     ui_print "Time command received. Sending remaining time..."
     local remaining_time=$(calculate_remaining_time)
+
     if [[ "$remaining_time" -lt 0 ]]; then
         echo "Test started at: $TEST_START_TIME (No time limit)" > "$PIPE_CLIENT"
     else
@@ -338,8 +334,9 @@ function handle_time_command() {
 
 # Function: Time is up
 function time_is_up() {
-    local remaining_time=$(calculate_remaining_time)
     ui_print "Time is up. No further commands are allowed."
+    local remaining_time=$(calculate_remaining_time)
+    
     if [[ "$remaining_time" -le 0 ]]; then
         echo "Time is up. No further commands are allowed." > "$PIPE_CLIENT"
         send_stop "$PIPE_CLIENT"
@@ -352,6 +349,7 @@ function time_is_up() {
 calculate_time_taken() {
     local current_time=$(date '+%s')
     local start_time=$(date -d "$TEST_START_TIME" '+%s')
+
     time_taken=$((current_time - start_time))
     (( time_taken <= 60 )) && time_taken=60
     echo $((time_taken / 60))
@@ -360,10 +358,10 @@ calculate_time_taken() {
 # Function: Calculate the final result
 calculate_final_result() {
     ui_print "Finish command received. Calculating final result..."
-
-    # Calculate the percentage of correct answers
     local total_questions=${#QUESTIONS[@]}
     local correct_answers=0
+
+    # Calculate the percentage of correct answers
     for question_number in "${!ANSWERED_QUESTIONS[@]}"; do
         if [[ "${ANSWERED_QUESTIONS[$question_number]}" == "1" ]]; then
             ((correct_answers++))
@@ -396,7 +394,7 @@ calculate_final_result() {
             local question="$(echo ${QUESTIONS[$i]} | cut -d'|' -f2)"
             echo "Question $question_number: $status: $question"
         done
-    } > "./$RESULTS_FOLDER/$result_file"
+    } > "$RESULTS_FOLDER/$result_file"
 
     # Send the final result to the client
     echo "Final Result: $percentage%" > "$PIPE_CLIENT"
@@ -407,8 +405,8 @@ calculate_final_result() {
 
 # Function: Session is not started
 function session_is_not_started() {
-    ui_print "Session not started. Please start the session first."
-    echo "Session not started. Please start the session first." > "$PIPE_CLIENT"
+    message="Session not started. Please start the session first."
+    ui_print "$message" | tee "$PIPE_CLIENT"
     send_stop "$PIPE_CLIENT"
 }
 
@@ -447,6 +445,7 @@ trap "cleanup $PIPE_SERVER" EXIT
 
 # Function: Main script logic
 function main() {
+    ui_print "Server is starting..."
     parse_arguments "$@"
     load_course_description
     load_questions

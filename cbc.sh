@@ -88,6 +88,7 @@ function send_command() {
 # Function: Handle server responses
 function get_response() {
     local response
+
     while true; do
         verbose_print "Waiting for server response..."
         read -r response < "$PIPE_CLIENT" 
@@ -116,6 +117,7 @@ function start_test_session() {
 # Function: Get the list of questions
 function list_questions() {
     local command="$1"
+
     verbose_print "Listing available questions..."
     send_command "$command"
     get_response
@@ -124,6 +126,7 @@ function list_questions() {
 # Function: Get a specific question from the server
 function get_question () {
     LAST_QUESTION="$1"
+    
     verbose_print "Requesting question number $LAST_QUESTION ..."
     send_command "$LAST_QUESTION"
     get_response
@@ -224,6 +227,7 @@ trap "cleanup $PIPE_CLIENT" EXIT  # Set trap to clean up on exit
 
 # Function: Main script logic
 function main() {
+    ui_print "Client is starting..."
     parse_arguments "$@"
     create_pipe "$PIPE_CLIENT" "$0"
     verbose_print "Client is running. Waiting for user input..."
