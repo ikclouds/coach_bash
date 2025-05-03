@@ -12,21 +12,21 @@
 # Default values
 PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
 PIPE_CLIENT="/tmp/cbc_pipe"       # Default named pipe for client
-RESULTS_FOLDER="./results"        # Folder to store results (step 5a)
-COURSES_FOLDER="./courses"        # Folder to store courses (step 5a)
-QUESTION_FILE="./$COURSES_FOLDER/course.txt"      # Default question file for the course
-DESCRIPTION_FILE="./$COURSES_FOLDER/course.des"   # Default description file for the course
+RESULTS_FOLDER="./results"        # Folder to store results
+COURSES_FOLDER="./courses"        # Folder to store courses
+QUESTION_FILE="$COURSES_FOLDER/course.txt"      # Default question file for the course
+DESCRIPTION_FILE="$COURSES_FOLDER/course.des"   # Default description file for the course
 VERBOSE=false                     # Verbose output flag
 RESPONSE=false                    # Response output flag
-NUM_SEPARATOR=$'|'                # Number separator for questions (step 5a)
+NUM_SEPARATOR=$'|'                # Number separator for questions
 LINE_SEPARATOR=$'|\n'             # Line separator for questions
 QUESTION_SEPARATOR="/"            # Question separator
 
 # State variables
-USERNAME=""                       # Username of the client  (step 5a)
-TOPIC=""                          # Topic (course code)  (step 5a)
-COURSE_NAME=""                    # Course name  (step 5a)
-DIFFICULTY_NAME=""                # Difficulty name  (step 5a)
+USERNAME=""                       # Username of the client
+TOPIC=""                          # Topic (course code)
+COURSE_NAME=""                    # Course name
+DIFFICULTY_NAME=""                # Difficulty name
 TEST_START_TIME=                  # Test start date-time
 TEST_DURATION=0                   # Test duration in minutes (0 means no time limit)
 ANSWERED_QUESTIONS=()             # Array to track answered questions
@@ -43,14 +43,16 @@ ERR_UNKNOWN=6                     # Unknown error
 function show_help() {
     ui_print "Usage: ./cbs.sh [options]"
     ui_print "Options:"
+    ui_print "  -d file, --description file  Specify the description file to use (default: ./course_des.txt)"
     ui_print "  -h, --help                   Show this help message and exit"
     ui_print "  -p file, --pipe file         Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
     ui_print "  -q file, --questions file    Specify the question file to use (default: ./course.txt)"
-    ui_print "  -d file, --description file  Specify the description file to use (default: ./course_des.txt)"
     ui_print "  -r, --response               Enable response to client about the correctness of the answer"
     ui_print "  -t n, --time n               Enable time-limited mode for answering questions (n minutes)"
     ui_print "  -u, --username               Specify username (required)"
     ui_print "  -v, --verbose                Enable verbose output"
+
+    exit_program $ERR_NO
 }
 
 # Function: Parse command-line arguments
@@ -58,7 +60,7 @@ function parse_arguments() {
     while [[ "$#" -gt 0 ]]; do
         case $1 in
             -d|--description) DESCRIPTION_FILE="$2"; shift ;;
-            -h|--help) show_help; exit_program $ERR_NO ;;
+            -h|--help) show_help ;;
             -p|--pipe) PIPE_SERVER="$2"; shift ;;
             -q|--questions) QUESTION_FILE="$2"; shift ;;
             -r|--response) RESPONSE=true ;;
@@ -290,7 +292,7 @@ function calculate_remaining_time() {
         local start_time=$(date -d "${TEST_START_TIME:=$(date -d@$current_time)}" '+%s')
         local elapsed_time=$((current_time - start_time))
         local remaining_time=$((((TEST_DURATION) * 60 - elapsed_time) / 60))
-        [[ -n $TEST_START_TIME ]] && ((remaining_time++)) # Add 1 minute for the first minute
+        [[ -n $TEST_START_TIME && $TEST_DURATION = "1" ]] && ((remaining_time++)) # Add 1 minute for 1 minute test
         echo "$remaining_time"
     else
         echo "-1"  # No time limit
@@ -309,7 +311,6 @@ function is_time_remaining() {
 }
 
 # Function: Check if session is started
-# step 5a
 function is_session_started() {
     if [[ -z "$TEST_START_TIME" ]]; then
         return 1
@@ -326,7 +327,9 @@ function handle_time_command() {
     if [[ "$remaining_time" -lt 0 ]]; then
         echo "Test started at: $TEST_START_TIME (No time limit)" > "$PIPE_CLIENT"
     else
-        echo "Test started at: $TEST_START_TIME" > "$PIPE_CLIENT"
+        [[ -z "$TEST_START_TIME" ]] \
+            && echo "Test started at: hasn't started" > "$PIPE_CLIENT" \
+            || echo "Test started at: $TEST_START_TIME" > "$PIPE_CLIENT"
         sleep $SEND_DELAY
         echo "Remaining time: $remaining_time minutes" > "$PIPE_CLIENT"
     fi
@@ -346,15 +349,15 @@ function time_is_up() {
 }
 
 # Function: Calculate time taken
-# step 5a
 calculate_time_taken() {
     local current_time=$(date '+%s')
     local start_time=$(date -d "$TEST_START_TIME" '+%s')
-    echo $(((current_time - start_time) / 60 + 1))
+    time_taken=$((current_time - start_time))
+    (( time_taken <= 60 )) && time_taken=60
+    echo $((time_taken / 60))
 }
 
 # Function: Calculate the final result
-# step 5a
 calculate_final_result() {
     ui_print "Finish command received. Calculating final result..."
 
@@ -398,20 +401,15 @@ calculate_final_result() {
     # Send the final result to the client
     echo "Final Result: $percentage%" > "$PIPE_CLIENT"
     send_stop "$PIPE_CLIENT"
+
+    quit_program
 }
 
 # Function: Session is not started
-# step 5a
 function session_is_not_started() {
     ui_print "Session not started. Please start the session first."
     echo "Session not started. Please start the session first." > "$PIPE_CLIENT"
     send_stop "$PIPE_CLIENT"
-}
-
-# Function: Quit the program
-function quit_program() {
-    ui_print "Quit command received. Ending session..."
-    exit_program $ERR_NO
 }
 
 # Function: Process client commands
@@ -420,12 +418,10 @@ function process_command() {
 
     verbose_print "Received command: $command"
     case "$command" in
-        q)  quit_program ;;
         i)  send_session_info ;;
         s)  start_test_session ;;
-        t)  handle_time_command ;;
         l|a|a\|*|[0-9]*|r|r\|*)
-            if ! is_session_started; then  # step 5a
+            if ! is_session_started; then
                 session_is_not_started
                 return 1
             elif is_time_remaining; then
@@ -437,12 +433,11 @@ function process_command() {
                 esac
             else
                 time_is_up
-            fi
-            ;;
+            fi ;;
         p)  display_progress ;;
-        f)  calculate_final_result  # step 5a
-            quit_program 
-            ;;
+        t)  handle_time_command ;;
+        f)  calculate_final_result ;;
+        q)  quit_program ;;
         *)  ui_print "Invalid command received: $command" ;;
     esac
 }

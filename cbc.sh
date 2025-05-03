@@ -35,26 +35,30 @@ function show_help() {
     ui_print "  -u, --username  Specify username (required)"
     ui_print "  -v, --verbose   Enable verbose output"
     show_commands
-}
+
+    exit_program $ERR_NO
+} 
 
 # Function: Display commands
 function show_commands() {
     ui_print "Commands:"
     ui_print "  [number]        Request a specific question by number 0-99"
     ui_print "  a               Submit an answer"
+    ui_print "  f               Finish the question-answer session"
+    ui_print "  i               Show course information"
     ui_print "  l               List available questions"
     ui_print "  p               List progress of answered questions"
+    ui_print "  q               Quit the program"
     ui_print "  r               Set/Unset (repeat) question for answering later"
     ui_print "  s               Start the question-answer session"
-    ui_print "  t               Get the remaining time to answer"
-    ui_print "  q               Quit the session"
+    ui_print "  t               Show remaining time"
 }
 
 # Function: Parse command-line arguments
 function parse_arguments() {
     while [[ "$#" -gt 0 ]]; do
         case $1 in
-            -h|--help) show_help; exit_program $ERR_NO ;;
+            -h|--help) show_help ;;
             -p|--pipe) PIPE_CLIENT="$2"; shift ;;
             -u|--username) USERNAME="$2"; shift ;;
             -v|--verbose) VERBOSE=true ;;
@@ -112,7 +116,7 @@ function start_test_session() {
 # Function: Get the list of questions
 function list_questions() {
     local command="$1"
-    ui_print "Listing available questions..."
+    verbose_print "Listing available questions..."
     send_command "$command"
     get_response
 }
@@ -120,14 +124,14 @@ function list_questions() {
 # Function: Get a specific question from the server
 function get_question () {
     LAST_QUESTION="$1"
-    ui_print "Requesting question number $LAST_QUESTION ..."
+    verbose_print "Requesting question number $LAST_QUESTION ..."
     send_command "$LAST_QUESTION"
     get_response
 }
 
 # Function: Submit an answer
 function submit_answer() {
-    if [[ -z "$TEST_START_TIME" ]]; then  # step 5a
+    if [[ -z "$TEST_START_TIME" ]]; then
         ui_print "Error: No session started. Please start a session first."
         return 1
     fi
@@ -143,7 +147,7 @@ function submit_answer() {
 
 # Function: Display progress of answers
 function display_progress() {
-    ui_print "Requesting progress list from server..."
+    verbose_print "Requesting progress list from server..."
     send_command "p"
     local progress_list=$(get_response)
     ui_print "$progress_list"
@@ -165,7 +169,7 @@ function mark_question_for_later() {
 
 # Function: Display remaining time
 function display_remaining_time() {
-    ui_print "Requesting remaining time from server..."
+    verbose_print "Requesting remaining time from server..."
     send_command "t"
     local time_info=$(get_response)
     ui_print "$time_info"
@@ -173,7 +177,7 @@ function display_remaining_time() {
 
 # Function: Display course information
 function display_session_info() {
-    ui_print "Requesting session info from server..."
+    verbose_print "Requesting session info from server..."
     send_command "i"
     local session_info=$(get_response)
     if [[ -z "$session_info" ]]; then
@@ -185,19 +189,12 @@ function display_session_info() {
 }
 
 # Function: Finish the session
-# step 5a
 finish_session() {
     ui_print "Ending the session and requesting final result..."
     send_command "f"
     local final_result=$(get_response)
     ui_print "$final_result"
-}
-
-# Function: Quit the program
-# step 5a
-function quit_program() {
-    ui_print "Quit command received. Ending session..."
-    exit_program $ERR_NO
+    quit_program
 }
 
 # Function to process client commands
@@ -205,25 +202,25 @@ function process_command() {
     local command="$1"
 
     [[ ! "ts" =~ "${command}" ]] && display_remaining_time
+    [[ ! "i" =~ "${command}" ]] && display_session_info
     verbose_print "Entered: $command"
     case "$command" in
+        h)  show_commands ;;
         s)  start_test_session ;;
         l)  list_questions "$command" ;;
+        i)  display_session_info ;;
         p)  display_progress ;;
         r)  mark_question_for_later "$LAST_QUESTION" ;;
         t)  display_remaining_time ;;
         [0-9]|[0-9][0-9]) get_question "$command" ;;
         a)  submit_answer ;;
-        f)  finish_session    # step 5a
-            quit_program
-            ;;
-        q)  quit_program ;;   # step 5a
-        h)  show_commands ;;
+        f)  finish_session ;;
+        q)  quit_program ;;
         *)  ui_print "Unknown command: $command" ;;
     esac
 }
 
-trap "cleanup $PIPE_CLIENT" EXIT          # Set trap to clean up on exit
+trap "cleanup $PIPE_CLIENT" EXIT  # Set trap to clean up on exit
 
 # Function: Main script logic
 function main() {
@@ -235,7 +232,6 @@ function main() {
     local user_input
     while true; do
         ui_print "---\nIteration: $((main_count++))"
-        display_session_info
         read -p "Enter command: " user_input
         process_command "$user_input"
     done
