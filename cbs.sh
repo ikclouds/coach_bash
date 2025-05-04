@@ -32,8 +32,6 @@ TEST_DURATION=0                   # Test duration in minutes (0 means no time li
 QUESTIONS=()                      # Array to store questions
 ANSWERED_QUESTIONS=()             # Array to track answered questions
 REPEAT_QUESTIONS=()               # Array to track questions marked for later
-ANSWERED_QUESTIONS=()             # Array to track answered questions
-REPEAT_QUESTIONS=()               # Array to track questions marked for later
 LAST_QUESTION=""                  # Last question number
 
 # Error codes
@@ -347,7 +345,7 @@ function time_is_up() {
 }
 
 # Function: Calculate time taken
-calculate_time_taken() {
+function calculate_time_taken() {
     local current_time=$(date '+%s')
     local start_time=$(date -d "$TEST_START_TIME" '+%s')
 
@@ -357,7 +355,7 @@ calculate_time_taken() {
 }
 
 # Function: Calculate the final result
-calculate_final_result() {
+function calculate_final_result() {
     ui_print "Finish command received. Calculating final result..."
     local total_questions=${#QUESTIONS[@]}
     local correct_answers=0
