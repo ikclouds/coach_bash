@@ -299,9 +299,9 @@ function is_time_remaining() {
     if [[ "$TEST_DURATION" -gt 0 ]]; then
         local remaining_time=$(calculate_remaining_time)
         verbose_print "Remaining time: $remaining_time minutes"
-        true   # Time is remaining
+        [[ "$remaining_time" -gt 0 ]]
     else
-        false  # No time limit, always allow
+        return 0  # No time limit
     fi
 }
 

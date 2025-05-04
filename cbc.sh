@@ -204,8 +204,8 @@ finish_session() {
 function process_command() {
     local command="$1"
 
-    [[ ! "ts" =~ "${command}" ]] && display_remaining_time
     [[ ! "i" =~ "${command}" ]] && display_session_info
+    [[ ! "tsi" =~ "${command}" ]] && display_remaining_time
     verbose_print "Entered: $command"
     case "$command" in
         h)  show_commands ;;
