@@ -32,6 +32,7 @@ function show_help() {
     ui_print "Options:"
     ui_print "  -h, --help      Show this help message and exit"
     ui_print "  -p, --pipe      Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
+    ui_print "  -t, --topic     Specify topic (required)"
     ui_print "  -u, --username  Specify username (required)"
     ui_print "  -v, --verbose   Enable verbose output"
     show_commands
@@ -58,6 +59,7 @@ function parse_arguments() {
         case $1 in
             -h|--help) show_help; exit_program $ERR_NO ;;
             -p|--pipe) PIPE_CLIENT="$2"; shift ;;
+            -t|--topic) TOPIC="$2"; shift ;;
             -u|--username) USERNAME="$2"; shift ;;
             -v|--verbose) VERBOSE=true ;;
             *)  show_help
@@ -67,13 +69,18 @@ function parse_arguments() {
         shift
     done
 
-    # Validate username
-    if [[ -z "$USERNAME" ]]; then
-        ui_print "Error: Username is required. Use the -u option to specify it."
+    # Use environment variables if command-line options are not provided
+    USERNAME="${USERNAME:-$CB_USERNAME}"
+    TOPIC="${TOPIC:-$CB_TOPIC}"
+
+    # Validate username and topic
+    if [[ -z "$USERNAME" || -z "$TOPIC" ]]; then
+        ui_print "Error: Username and topic are required. Use the -u and -t options or set CB_USERNAME and CB_TOPIC env variables."
         exit_program $ERR_OPTION
     fi
 
     verbose_print "Username: $USERNAME"
+    verbose_print "Topic: $TOPIC"
 }
 
 # Function: Send a command to the server
@@ -200,6 +207,23 @@ finish_session() {
     quit_program
 }
 
+function init_application() {
+    ui_print "Client is starting..."
+    parse_arguments "$@"
+    
+    local pipe_client="/tmp/${USERNAME}_${TOPIC}_cbc_pipe"
+    PIPE_CLIENT="${pipe_client:-${PIPE_CLIENT}}"
+    create_pipe "$PIPE_CLIENT" "$0"
+
+    local pipe_server="/tmp/${USERNAME}_${TOPIC}_cbs_pipe"
+    PIPE_SERVER="${pipe_server:-${PIPE_SERVER}}"
+
+    # Set trap to clean up on exit
+    trap "cleanup $PIPE_CLIENT" EXIT
+    
+    verbose_print "Client is running. Waiting for user input..."
+}
+
 # Function to process client commands
 function process_command() {
     local command="$1"
@@ -223,19 +247,14 @@ function process_command() {
     esac
 }
 
-trap "cleanup $PIPE_CLIENT" EXIT  # Set trap to clean up on exit
-
 # Function: Main script logic
 function main() {
-    ui_print "Client is starting..."
-    parse_arguments "$@"
-    create_pipe "$PIPE_CLIENT" "$0"
-    verbose_print "Client is running. Waiting for user input..."
+    init_application "$@"
 
-    local main_count=1
+    local iteration=1
     local user_input
     while true; do
-        ui_print "---\nIteration: $((main_count++))"
+        ui_print "---\nIteration: $((iteration++))"
         read -p "Enter command: " user_input
         process_command "$user_input"
     done

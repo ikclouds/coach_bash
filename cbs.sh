@@ -73,9 +73,12 @@ function parse_arguments() {
         shift
     done
 
+    # Use environment variables if command-line options are not provided
+    USERNAME="${USERNAME:-$CB_USERNAME}"
+
     # Validate username
     if [[ -z "$USERNAME" ]]; then
-        ui_print "Error: Username is required. Use the -u option to specify it."
+        ui_print "Error: Username is required. Use the -u option or set CB_USERNAME env variable."
         exit_program $ERR_OPTION
     fi
 
@@ -101,6 +104,16 @@ function load_course_description() {
     fi
 
     IFS='|' read -r TOPIC COURSE_NAME DIFFICULTY_NAME <<< "$course_line"
+
+    # Use environment variables if command-line options are not provided
+    TOPIC="${TOPIC:-$CB_TOPIC}"
+
+    # Validate topic
+    if [[ -z "$TOPIC" ]]; then
+        ui_print "Error: Topic is required. Use the $DESCRIPTION_FILE file or CB_TOPIC env variable."
+        exit_program $ERR_FILE
+    fi
+
     verbose_print "Topic: $TOPIC"
     verbose_print "Course: $COURSE_NAME"
     verbose_print "Difficulty: $DIFFICULTY_NAME"
@@ -408,6 +421,25 @@ function session_is_not_started() {
     send_stop "$PIPE_CLIENT"
 }
 
+function init_application() {
+    ui_print "Server is starting..."
+    parse_arguments "$@"
+    load_course_description
+    load_questions
+    
+    local pipe_server="/tmp/${USERNAME}_${TOPIC}_cbs_pipe"
+    PIPE_SERVER="${pipe_server:-${PIPE_SERVER}}"
+    create_pipe "$PIPE_SERVER" "$0"
+    
+    local pipe_client="/tmp/${USERNAME}_${TOPIC}_cbc_pipe"
+    PIPE_CLIENT="${pipe_client:-${PIPE_CLIENT}}"
+
+    # Set trap to clean up on exit
+    trap "cleanup $PIPE_SERVER" EXIT
+    
+    verbose_print "Server is running. Waiting for client input..."
+}
+
 # Function: Process client commands
 function process_command() {
     local command="$1"
@@ -438,22 +470,14 @@ function process_command() {
     esac
 }
 
-# Set trap to clean up on exit
-trap "cleanup $PIPE_SERVER" EXIT
-
 # Function: Main script logic
 function main() {
-    ui_print "Server is starting..."
-    parse_arguments "$@"
-    load_course_description
-    load_questions
-    create_pipe "$PIPE_SERVER" "$0"
-    verbose_print "Server is running. Waiting for client input..."
+    init_application "$@"
 
-    local main_count=1
+    local iteration=1
     local client_command
     while true; do
-        ui_print "---\nIteration: $((main_count++))"
+        ui_print "---\nIteration: $((iteration++))"
         read -r client_command < "$PIPE_SERVER"
         process_command "$client_command"
     done
