@@ -18,9 +18,9 @@ QUESTION_FILE="$COURSES_FOLDER/course.txt"      # Default question file for the 
 DESCRIPTION_FILE="$COURSES_FOLDER/course.des"   # Default description file for the course
 VERBOSE=false                     # Verbose output flag
 RESPONSE=false                    # Response output flag
-NUM_SEPARATOR=$'|'                # Number separator for questions
 LINE_SEPARATOR=$'|\n'             # Line separator for questions
-QUESTION_SEPARATOR="/"            # Question separator
+NUM_SEPARATOR=$'|'                # Number separator for questions
+ANSWER_SEPARATOR=$'/'             # Answer separator
 
 # State variables
 USERNAME=""                       # Username of the client
@@ -29,6 +29,9 @@ COURSE_NAME=""                    # Course name
 DIFFICULTY_NAME=""                # Difficulty name
 TEST_START_TIME=                  # Test start date-time
 TEST_DURATION=0                   # Test duration in minutes (0 means no time limit)
+QUESTIONS=()                      # Array to store questions
+ANSWERED_QUESTIONS=()             # Array to track answered questions
+REPEAT_QUESTIONS=()               # Array to track questions marked for later
 ANSWERED_QUESTIONS=()             # Array to track answered questions
 REPEAT_QUESTIONS=()               # Array to track questions marked for later
 LAST_QUESTION=""                  # Last question number
@@ -128,14 +131,12 @@ function send_question() {
       verbose_print "Sending question $question_number to client..."
       IFS="$LINE_SEPARATOR" read -t 1 -r number question type options correct <<< "$question_line"
       if [[ "$type" == "text" ]]; then
-        local message "> Question $question_number| $question $options ($type)"
+        ui_print "> Question $question_number| $question $options ($type)" | tee "$PIPE_CLIENT"
       else
-        local message="> Question $question_number| $question ($type)"
+        ui_print "> Question $question_number| $question ($type)" | tee "$PIPE_CLIENT"
       fi
-      ui_print "$message" | tee "$PIPE_CLIENT"
       if [[ "$type" == "multiple-choice" || "$type" == "one-choice" ]]; then
-          local option
-          echo "$options" | while read -d "$QUESTION_SEPARATOR" -r option; do
+          echo "$options" | while read -d "$ANSWER_SEPARATOR" -r option; do
               ui_print "> $option" | tee "$PIPE_CLIENT"
               sleep $SEND_DELAY
           done
@@ -150,8 +151,7 @@ function list_questions() {
     for i in "${!QUESTIONS[@]}"; do
         question_line="${QUESTIONS[$i]}"
         IFS="$LINE_SEPARATOR" read -r number question _ <<< "${QUESTIONS[$i]}"
-        local message="> Question $((i + 1))| $question"
-        ui_print "$message" | tee "$PIPE_CLIENT"
+        ui_print "> Question $((i + 1))| $question" | tee "$PIPE_CLIENT"
         sleep $SEND_DELAY
     done
     send_stop "$PIPE_CLIENT"
@@ -196,17 +196,15 @@ function send_session_info() {
 # Function: Mark a question for answering later
 function mark_question_for_later() {
     local question_number="$1"
-    local message=""
 
     if [[ " ${!REPEAT_QUESTIONS[@]} " != *" $question_number "* ]]; then
         REPEAT_QUESTIONS+=([$question_number]="1")
-        message="Question $question_number marked for answering later."
+        ui_print "Question $question_number marked for answering later." | tee "$PIPE_CLIENT"
     else
         unset REPEAT_QUESTIONS[$(($question_number))]
-        message="Question $question_number is not marked for answering later."
+        ui_print "Question $question_number is not marked for answering later." | tee "$PIPE_CLIENT"
     fi
     verbose_print "$(declare -p REPEAT_QUESTIONS | sed 's/^declare -a //')"
-    echo "$message" > "$PIPE_CLIENT"
     send_stop "$PIPE_CLIENT"
 }
 
@@ -252,6 +250,7 @@ function process_answer() {
         # Normalize answer for comparison, no space is allowed
         user_answer=$(echo "$user_answer" | sed 's/ //g' | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
         correct=$(echo "$correct" | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
+         # Check if the user answer matches the correct answer
         if [[ "${user_answer,,}" == "${correct,,}" ]]; then
             ANSWERED_QUESTIONS["$question_number"]="1"
             response="Correct"
@@ -260,7 +259,7 @@ function process_answer() {
         # Normalize answer for comparison, one space is allowed
         user_answer=$(echo "$user_answer" | sed 's/  / /g')
         # Check if the user answer matches any of the correct answers
-        IFS="$QUESTION_SEPARATOR" read -ra correct_answers <<< "${correct}"
+        IFS="$ANSWER_SEPARATOR" read -ra correct_answers <<< "${correct}"
         for correct in "${correct_answers[@]}"; do
             if [[ "${user_answer,,}" == "${correct,,}" ]]; then
                 ANSWERED_QUESTIONS["$question_number"]="1"
@@ -302,17 +301,19 @@ function is_time_remaining() {
     if [[ "$TEST_DURATION" -gt 0 ]]; then
         local remaining_time=$(calculate_remaining_time)
         verbose_print "Remaining time: $remaining_time minutes"
-        [[ "$remaining_time" -gt 0 ]]
+        true   # Time is remaining
     else
-        return 0  # No time limit, always allow
+        false  # No time limit, always allow
     fi
 }
 
 # Function: Check if session is started
 function is_session_started() {
-    [[ -z "$TEST_START_TIME" ]] \
-        && return 1 \
-        || return 0
+    if [[ -z "$TEST_START_TIME" ]]; then
+        return 1
+    else
+        return 0
+    fi
 }
 
 # Function: Handle the `t` (time) command
@@ -405,8 +406,7 @@ calculate_final_result() {
 
 # Function: Session is not started
 function session_is_not_started() {
-    message="Session not started. Please start the session first."
-    ui_print "$message" | tee "$PIPE_CLIENT"
+    ui_print "Session not started. Please start the session first." | tee "$PIPE_CLIENT"
     send_stop "$PIPE_CLIENT"
 }
 
