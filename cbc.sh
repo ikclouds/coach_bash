@@ -10,6 +10,7 @@
 . "./cbl.sh"
 
 # Default values
+APP_NAME="cbc"                    # Application name
 PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
 PIPE_CLIENT="/tmp/cbc_pipe"       # Default named pipe for client
 VERBOSE=false                     # Verbose output flag
@@ -20,11 +21,6 @@ USERNAME=""                       # Username of the client
 SESSION=""                        # Session info from the server
 TEST_START_TIME=""                # Test start date-time
 LAST_QUESTION=""                  # Last question number
-
-# Error codes
-ERR_NO=0                          # No error
-ERR_OPTION=1                      # Invalid command-line option
-ERR_UNKNOWN=6                     # Unknown error
 
 # Function: Display help
 function show_help() {
@@ -86,6 +82,9 @@ function parse_arguments() {
 # Function: Send a command to the server
 function send_command() {
     local command="$1"
+
+    validate_pipe "$PIPE_SERVER" "$APP_NAME"
+
     if [[ -n "$command" ]]; then
       verbose_print "Sending command to server: $command"
       echo "$command" > "$PIPE_SERVER"
@@ -220,6 +219,10 @@ function init_application() {
 
     # Set trap to clean up on exit
     trap "cleanup $PIPE_CLIENT" EXIT
+    # Set trap to handle crashes
+    trap "handle_crash $PIPE_CLIENT" INT TERM
+    # Set trap to handle errors
+    trap "error_handler" ERR
     
     verbose_print "Client is running. Waiting for user input..."
 }

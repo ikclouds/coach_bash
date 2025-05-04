@@ -10,6 +10,7 @@
 . "./cbl.sh"
 
 # Default values
+APP_NAME="cbs"                    # Application name
 PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
 PIPE_CLIENT="/tmp/cbc_pipe"       # Default named pipe for client
 RESULTS_FOLDER="./results"        # Folder to store results
@@ -33,12 +34,6 @@ QUESTIONS=()                      # Array to store questions
 ANSWERED_QUESTIONS=()             # Array to track answered questions
 REPEAT_QUESTIONS=()               # Array to track questions marked for later
 LAST_QUESTION=""                  # Last question number
-
-# Error codes
-ERR_NO=0                          # No error
-ERR_OPTION=1                      # Invalid command-line option
-ERR_FILE=2                        # Invalid file name
-ERR_UNKNOWN=6                     # Unknown error
 
 # Function: Display help
 function show_help() {
@@ -129,6 +124,18 @@ function load_questions() {
     mapfile -t QUESTIONS < "$QUESTION_FILE"
 }
 
+
+# Function: Send a command to the client
+function send_answer() {
+    local answer="$1"
+
+    validate_pipe "$PIPE_CLIENT" "$APP_NAME"
+
+    if [[ -n "$answer" ]]; then
+        ui_print "$answer" | tee "$PIPE_CLIENT"
+    fi
+}
+
 # Function: Send a question to the client
 function send_question() {
     local question_number="$1"
@@ -137,18 +144,18 @@ function send_question() {
     ui_print "Send question number $question_number command received. Sending question..."
     if [[ -z "$question_line" ]]; then
         local message="> Error: Question $question_number not found."
-        ui_print "$message" | tee "$PIPE_CLIENT"
+        send_answer "$message"
     else
       verbose_print "Sending question $question_number to client..."
       IFS="$LINE_SEPARATOR" read -t 1 -r number question type options correct <<< "$question_line"
       if [[ "$type" == "text" ]]; then
-        ui_print "> Question $question_number| $question $options ($type)" | tee "$PIPE_CLIENT"
+        send_answer "> Question $question_number| $question $options ($type)"
       else
-        ui_print "> Question $question_number| $question ($type)" | tee "$PIPE_CLIENT"
+        send_answer "> Question $question_number| $question ($type)"
       fi
       if [[ "$type" == "multiple-choice" || "$type" == "one-choice" ]]; then
           echo "$options" | while read -d "$ANSWER_SEPARATOR" -r option; do
-              ui_print "> $option" | tee "$PIPE_CLIENT"
+              send_answer "> $option"
               sleep $SEND_DELAY
           done
       fi
@@ -162,7 +169,7 @@ function list_questions() {
     for i in "${!QUESTIONS[@]}"; do
         question_line="${QUESTIONS[$i]}"
         IFS="$LINE_SEPARATOR" read -r number question _ <<< "${QUESTIONS[$i]}"
-        ui_print "> Question $((i + 1))| $question" | tee "$PIPE_CLIENT"
+        send_answer "> Question $((i + 1))| $question"
         sleep $SEND_DELAY
     done
     send_stop "$PIPE_CLIENT"
@@ -198,7 +205,7 @@ function send_session_info() {
     ui_print "Get session information. Sending session info..."
     echo -e "Username: ${USERNAME}\nCourse: ${COURSE_NAME} (Difficulty: ${DIFFICULTY_NAME})" | \
     while read -r session; do
-        ui_print "$session" | tee "$PIPE_CLIENT"
+        send_answer "$session"
         sleep $SEND_DELAY
     done
     send_stop "$PIPE_CLIENT"
@@ -210,10 +217,10 @@ function mark_question_for_later() {
 
     if [[ " ${!REPEAT_QUESTIONS[@]} " != *" $question_number "* ]]; then
         REPEAT_QUESTIONS+=([$question_number]="1")
-        ui_print "Question $question_number marked for answering later." | tee "$PIPE_CLIENT"
+        send_answer "Question $question_number marked for answering later."
     else
         unset REPEAT_QUESTIONS[$(($question_number))]
-        ui_print "Question $question_number is not marked for answering later." | tee "$PIPE_CLIENT"
+        send_answer "Question $question_number is not marked for answering later."
     fi
     verbose_print "$(declare -p REPEAT_QUESTIONS | sed 's/^declare -a //')"
     send_stop "$PIPE_CLIENT"
@@ -417,7 +424,7 @@ function calculate_final_result() {
 
 # Function: Session is not started
 function session_is_not_started() {
-    ui_print "Session not started. Please start the session first." | tee "$PIPE_CLIENT"
+    send_answer "Session not started. Please start the session first."
     send_stop "$PIPE_CLIENT"
 }
 
@@ -436,6 +443,10 @@ function init_application() {
 
     # Set trap to clean up on exit
     trap "cleanup $PIPE_SERVER" EXIT
+    # Set trap to handle crashes
+    trap "handle_crash $PIPE_SERVER" INT TERM
+    # Set trap to handle errors
+    trap "error_handler" ERR
     
     verbose_print "Server is running. Waiting for client input..."
 }
