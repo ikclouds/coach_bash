@@ -62,7 +62,7 @@ function parse_arguments() {
             -u|--username) USERNAME="$2"; shift ;;
             -v|--verbose) VERBOSE=true ;;
             *)  show_help
-                ui_print "Unknown option: $1"
+                error_print "Error: Unknown option: $1"
                 exit_program $ERR_OPTION ;;
         esac
         shift
@@ -73,7 +73,7 @@ function parse_arguments() {
 
     # Validate username
     if [[ -z "$USERNAME" ]]; then
-        ui_print "Error: Username is required. Use the -u option or set CB_USERNAME env variable."
+        error_print "Error: Username is required. Use the -u option or set CB_USERNAME env variable."
         exit_program $ERR_OPTION
     fi
 
@@ -86,7 +86,7 @@ function parse_arguments() {
 # Function: Load course description
 function load_course_description() {
     if [[ ! -f "$DESCRIPTION_FILE" ]]; then
-        ui_print "Error: Course description file not found: $DESCRIPTION_FILE"
+        error_print "Error: Course description file not found: $DESCRIPTION_FILE"
         exit_program $ERR_FILE
     fi
 
@@ -94,7 +94,7 @@ function load_course_description() {
     local course_line
     course_line=$(grep -E "^$TOPIC|" "$DESCRIPTION_FILE")
     if [[ -z "$course_line" ]]; then
-        ui_print "Error: Topic '$TOPIC' not found in course description file."
+        error_print "Error: Topic '$TOPIC' not found in course description file."
         exit_program $ERR_FILE
     fi
 
@@ -105,7 +105,7 @@ function load_course_description() {
 
     # Validate topic
     if [[ -z "$TOPIC" ]]; then
-        ui_print "Error: Topic is required. Use the $DESCRIPTION_FILE file or CB_TOPIC env variable."
+        error_print "Error: Topic is required. Use the $DESCRIPTION_FILE file or CB_TOPIC env variable."
         exit_program $ERR_FILE
     fi
 
@@ -117,13 +117,12 @@ function load_course_description() {
 # Function: Load questions from the file
 function load_questions() {
     if [[ ! -f "$QUESTION_FILE" ]]; then
-        ui_print "Error: Question file not found: $QUESTION_FILE"
+        error_print "Error: Question file not found: $QUESTION_FILE"
         exit_program $ERR_FILE
     fi
     verbose_print "Loading questions from file: $QUESTION_FILE"
     mapfile -t QUESTIONS < "$QUESTION_FILE"
 }
-
 
 # Function: Send a command to the client
 function send_answer() {
@@ -143,8 +142,7 @@ function send_question() {
 
     ui_print "Send question number $question_number command received. Sending question..."
     if [[ -z "$question_line" ]]; then
-        local message="> Error: Question $question_number not found."
-        send_answer "$message"
+        error_print "> Error: Question $question_number not found."
     else
       verbose_print "Sending question $question_number to client..."
       IFS="$LINE_SEPARATOR" read -t 1 -r number question type options correct <<< "$question_line"
@@ -233,7 +231,7 @@ function start_test_session() {
         TEST_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
         verbose_print "Test session started at: $TEST_START_TIME"
     else
-        ui_print "Test session already started at: $TEST_START_TIME"
+        warning_print "Test session already started at: $TEST_START_TIME"
     fi
 
     echo "$TEST_START_TIME" > "$PIPE_CLIENT"
@@ -429,24 +427,28 @@ function session_is_not_started() {
 }
 
 function init_application() {
+    # Set trap to handle errors
+    trap "error_handler" ERR
+
+    # Placeholder for initialize logging functionality
+    
     ui_print "Server is starting..."
     parse_arguments "$@"
+
     load_course_description
-    load_questions
-    
+
     local pipe_server="/tmp/${USERNAME}_${TOPIC}_cbs_pipe"
     PIPE_SERVER="${pipe_server:-${PIPE_SERVER}}"
     create_pipe "$PIPE_SERVER" "$0"
-    
     local pipe_client="/tmp/${USERNAME}_${TOPIC}_cbc_pipe"
     PIPE_CLIENT="${pipe_client:-${PIPE_CLIENT}}"
 
-    # Set trap to clean up on exit
-    trap "cleanup $PIPE_SERVER" EXIT
     # Set trap to handle crashes
     trap "handle_crash $PIPE_SERVER" INT TERM
-    # Set trap to handle errors
-    trap "error_handler" ERR
+    # Set trap to clean up on exit
+    trap "cleanup $PIPE_SERVER" EXIT
+
+    load_questions
     
     verbose_print "Server is running. Waiting for client input..."
 }
@@ -462,7 +464,7 @@ function process_command() {
         l|a|a\|*|[0-9]*|r|r\|*)
             if ! is_session_started; then
                 session_is_not_started
-                return 1
+                return
             elif is_time_remaining; then
                 case "$command" in
                     l)  list_questions ;;
@@ -477,7 +479,7 @@ function process_command() {
         t)  handle_time_command ;;
         f)  calculate_final_result ;;
         q)  quit_program ;;
-        *)  ui_print "Invalid command received: $command" ;;
+        *)  warning_print "Invalid command received: $command" ;;
     esac
 }
 

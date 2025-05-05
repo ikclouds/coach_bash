@@ -59,7 +59,7 @@ function parse_arguments() {
             -u|--username) USERNAME="$2"; shift ;;
             -v|--verbose) VERBOSE=true ;;
             *)  show_help
-                ui_print "Unknown option: $1"
+                error_print "Error: Unknown option: $1"
                 exit_program $ERR_OPTION ;;
         esac
         shift
@@ -71,7 +71,7 @@ function parse_arguments() {
 
     # Validate username and topic
     if [[ -z "$USERNAME" || -z "$TOPIC" ]]; then
-        ui_print "Error: Username and topic are required. Use the -u and -t options or set CB_USERNAME and CB_TOPIC env variables."
+        error_print "Error: Username and topic are required. Use the -u and -t options or set CB_USERNAME and CB_TOPIC env variables."
         exit_program $ERR_OPTION
     fi
 
@@ -94,6 +94,7 @@ function send_command() {
 # Function: Handle server responses
 function get_response() {
     local response
+    local error=false
 
     while true; do
         verbose_print "Waiting for server response..."
@@ -103,8 +104,13 @@ function get_response() {
             break
         elif [[ "$response" =~ "Error: Question" ]]; then
             LAST_QUESTION=""
+            error=true
         fi
-        ui_print "$response"
+        if [[ $error == true ]]; then
+            warning_print "$response"
+        else
+            ui_print "$response"
+        fi
     done
 }
 
@@ -141,7 +147,7 @@ function get_question () {
 # Function: Submit an answer
 function submit_answer() {
     if [[ -z "$TEST_START_TIME" ]]; then
-        ui_print "Error: No session started. Please start a session first."
+        error_print "Error: No session started. Please start a session first."
         return 1
     fi
     ui_print "Last question: $LAST_QUESTION"
@@ -190,7 +196,7 @@ function display_session_info() {
     send_command "i"
     local session_info=$(get_response)
     if [[ -z "$session_info" ]]; then
-        ui_print "Error: Unable to retrieve session info."
+        error_print "Error: Unable to retrieve session info."
         return
     fi
     SESSION="$session_info"
@@ -207,22 +213,24 @@ finish_session() {
 }
 
 function init_application() {
+    # Set trap to handle errors
+    trap "error_handler" ERR
+    
+    # Placeholder for initialize logging functionality
+
     ui_print "Client is starting..."
     parse_arguments "$@"
     
     local pipe_client="/tmp/${USERNAME}_${TOPIC}_cbc_pipe"
     PIPE_CLIENT="${pipe_client:-${PIPE_CLIENT}}"
     create_pipe "$PIPE_CLIENT" "$0"
-
     local pipe_server="/tmp/${USERNAME}_${TOPIC}_cbs_pipe"
     PIPE_SERVER="${pipe_server:-${PIPE_SERVER}}"
 
-    # Set trap to clean up on exit
-    trap "cleanup $PIPE_CLIENT" EXIT
     # Set trap to handle crashes
     trap "handle_crash $PIPE_CLIENT" INT TERM
-    # Set trap to handle errors
-    trap "error_handler" ERR
+    # Set trap to clean up on exit
+    trap "cleanup $PIPE_CLIENT" EXIT
     
     verbose_print "Client is running. Waiting for user input..."
 }
@@ -246,7 +254,7 @@ function process_command() {
         a)  submit_answer ;;
         f)  finish_session ;;
         q)  quit_program ;;
-        *)  ui_print "Unknown command: $command" ;;
+        *)  warning_print "Unknown command: $command" ;;
     esac
 }
 
