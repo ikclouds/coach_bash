@@ -13,7 +13,6 @@
 APP_NAME="cbc"                    # Application name
 PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
 PIPE_CLIENT="/tmp/cbc_pipe"       # Default named pipe for client
-VERBOSE=false                     # Verbose output flag
 RESPONSE=false                    # Response output flag
 
 # State variables
@@ -21,6 +20,7 @@ USERNAME=""                       # Username of the client
 SESSION=""                        # Session info from the server
 TEST_START_TIME=""                # Test start date-time
 LAST_QUESTION=""                  # Last question number
+LAST_COMMAND=""                   # Last command entered by the user
 
 # Function: Display help
 function show_help() {
@@ -30,7 +30,11 @@ function show_help() {
     ui_print "  -p, --pipe      Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
     ui_print "  -t, --topic     Specify topic (required)"
     ui_print "  -u, --username  Specify username (required)"
-    ui_print "  -v, --verbose   Enable verbose output"
+    ui_print "  -v              Logging level for CRIT messages and above"
+    ui_print "  -vv             Logging level for ERR messages and above"
+    ui_print "  -vvv            Logging level for WARNING messages and above"
+    ui_print "  -vvvv           Logging level for INFO messages and above"
+    ui_print "  -vvvvv          Logging level for DEBUG messages and above"
     show_commands
 } 
 
@@ -57,10 +61,14 @@ function parse_arguments() {
             -p|--pipe) PIPE_CLIENT="$2"; shift ;;
             -t|--topic) TOPIC="$2"; shift ;;
             -u|--username) USERNAME="$2"; shift ;;
-            -v|--verbose) VERBOSE=true ;;
-            *)  show_help
-                error_print "Error: Unknown option: $1"
-                exit_program $ERR_OPTION ;;
+            -v) LOGGING_LEVEL=$CRIT ;;
+            -vv) LOGGING_LEVEL=$ERR ;;
+            -vvv) LOGGING_LEVEL=$WARNING ;;
+            -vvvv) LOGGING_LEVEL=$INFO ;;
+            -vvvvv) LOGGING_LEVEL=$DEBUG ;;
+            *) show_help
+               error_print "Error: Unknown option: $1"
+               exit_program $ERR_OPTION ;;
         esac
         shift
     done
@@ -75,8 +83,9 @@ function parse_arguments() {
         exit_program $ERR_OPTION
     fi
 
-    verbose_print "Username: $USERNAME"
-    verbose_print "Topic: $TOPIC"
+    log_message $EMERG "INFO" "Logging level: $LOGGING_LEVEL"
+    log_message $EMERG "INFO" "Username: $USERNAME"
+    log_message $EMERG "INFO" "Topic: $TOPIC"
 }
 
 # Function: Send a command to the server
@@ -86,7 +95,7 @@ function send_command() {
     validate_pipe "$PIPE_SERVER" "$APP_NAME"
 
     if [[ -n "$command" ]]; then
-      verbose_print "Sending command to server: $command"
+      info_print "Sending command to server: $command"
       echo "$command" > "$PIPE_SERVER"
     fi
 }
@@ -97,10 +106,10 @@ function get_response() {
     local error=false
 
     while true; do
-        verbose_print "Waiting for server response..."
-        read -r response < "$PIPE_CLIENT" 
+        debug_print "Waiting for server response..."
+        read -r response < "$PIPE_CLIENT"
         if [[ "$response" =~ "$SEND_STOP" ]]; then
-            verbose_print "The server has stopped sending."
+            info_print "The server has stopped sending."
             break
         elif [[ "$response" =~ "Error: Question" ]]; then
             LAST_QUESTION=""
@@ -110,19 +119,23 @@ function get_response() {
             warning_print "$response"
         else
             ui_print "$response"
+            [[ "$LAST_COMMAND" != "f" ]] && log_message $DEBUG "DEBUG" "$response"
         fi
     done
 }
 
 # Function: Start the test session
 function start_test_session() {
-    verbose_print "Starting question-answer session..."
+    info_print "Starting question-answer session..."
     if [[ -z "$TEST_START_TIME" ]]; then
         send_command "s"                    # Send start command to server
         TEST_START_TIME=$(get_response)     # Capture the test start date-time
-        ui_print "Test session started at: $TEST_START_TIME"
+        
+        local message="Test session started at: $TEST_START_TIME"
+        ui_print "$message"
+        log_message $INFO "INFO" "$message"
     else
-        ui_print "Test session already started..."
+        warning_print "Test session already started..."
     fi
 }
 
@@ -130,7 +143,7 @@ function start_test_session() {
 function list_questions() {
     local command="$1"
 
-    verbose_print "Listing available questions..."
+    info_print "Listing available questions..."
     send_command "$command"
     get_response
 }
@@ -139,7 +152,7 @@ function list_questions() {
 function get_question () {
     LAST_QUESTION="$1"
 
-    verbose_print "Requesting question number $LAST_QUESTION ..."
+    info_print "Requesting question number $LAST_QUESTION ..."
     send_command "$LAST_QUESTION"
     get_response
 }
@@ -150,11 +163,14 @@ function submit_answer() {
         error_print "Error: No session started. Please start a session first."
         return 1
     fi
-    ui_print "Last question: $LAST_QUESTION"
+    message="Last question: $LAST_QUESTION"
+    ui_print "$message"
+    log_message $INFO "INFO" "$message"
     ui_print "Examples of answers: 1|3 (one-choice); 2|1,3 (multiple-choice); 3|my answer (text)."
     ui_print "Enter your answer (question|answer):" | tr '\n' ' '
     read -e -i "${LAST_QUESTION}|" -r user_answer
     send_command "a|$user_answer"
+    log_message $INFO "INFO" "Answer: $user_answer"
     local response=$(get_response)
     [[ "$response" =~ "Server response:" ]] && RESPONSE=true
     $RESPONSE && ui_print "$response"
@@ -162,7 +178,7 @@ function submit_answer() {
 
 # Function: Display progress of answers
 function display_progress() {
-    verbose_print "Requesting progress list from server..."
+    info_print "Requesting progress list from server..."
     send_command "p"
     local progress_list=$(get_response)
     ui_print "$progress_list"
@@ -184,7 +200,7 @@ function mark_question_for_later() {
 
 # Function: Display remaining time
 function display_remaining_time() {
-    verbose_print "Requesting remaining time from server..."
+    info_print "Requesting remaining time from server..."
     send_command "t"
     local time_info=$(get_response)
     ui_print "$time_info"
@@ -192,7 +208,7 @@ function display_remaining_time() {
 
 # Function: Display course information
 function display_session_info() {
-    verbose_print "Requesting session info from server..."
+    info_print "Requesting session info from server..."
     send_command "i"
     local session_info=$(get_response)
     if [[ -z "$session_info" ]]; then
@@ -209,6 +225,7 @@ finish_session() {
     send_command "f"
     local final_result=$(get_response)
     ui_print "$final_result"
+    log_message $EMERG "INFO" "$final_result"
     quit_program
 }
 
@@ -216,9 +233,11 @@ function init_application() {
     # Set trap to handle errors
     trap "error_handler" ERR
     
-    # Placeholder for initialize logging functionality
+    local message="Client is starting..."
+    ui_print "$message"
+    log_message $EMERG "INFO" "$message"
 
-    ui_print "Client is starting..."
+
     parse_arguments "$@"
     
     local pipe_client="/tmp/${USERNAME}_${TOPIC}_cbc_pipe"
@@ -232,16 +251,17 @@ function init_application() {
     # Set trap to clean up on exit
     trap "cleanup $PIPE_CLIENT" EXIT
     
-    verbose_print "Client is running. Waiting for user input..."
+    info_print "Client is running. Waiting for user input..."
 }
 
 # Function to process client commands
 function process_command() {
     local command="$1"
+    LAST_COMMAND="$command"
 
     [[ ! "i" =~ "${command}" ]] && display_session_info
     [[ ! "tsi" =~ "${command}" ]] && display_remaining_time
-    verbose_print "Entered: $command"
+    info_print "Entered: $command"
     case "$command" in
         h)  show_commands ;;
         s)  start_test_session ;;
@@ -254,7 +274,8 @@ function process_command() {
         a)  submit_answer ;;
         f)  finish_session ;;
         q)  quit_program ;;
-        *)  warning_print "Unknown command: $command" ;;
+        *)  warning_print "Unknown command: $command" 
+            LAST_COMMAND="" ;;
     esac
 }
 
