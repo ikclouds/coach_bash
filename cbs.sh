@@ -432,7 +432,10 @@ function init_application() {
 
     # Placeholder for initialize logging functionality
     
-    ui_print "Server is starting..."
+    local message="Server is starting..."
+    ui_print "$message"
+    log_message "INFO" "$message"
+
     parse_arguments "$@"
 
     load_course_description

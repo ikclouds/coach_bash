@@ -98,7 +98,7 @@ function get_response() {
 
     while true; do
         verbose_print "Waiting for server response..."
-        read -r response < "$PIPE_CLIENT" 
+        read -r response < "$PIPE_CLIENT"
         if [[ "$response" =~ "$SEND_STOP" ]]; then
             verbose_print "The server has stopped sending."
             break
@@ -110,6 +110,7 @@ function get_response() {
             warning_print "$response"
         else
             ui_print "$response"
+            log_message "INFO" "$response"
         fi
     done
 }
@@ -120,9 +121,12 @@ function start_test_session() {
     if [[ -z "$TEST_START_TIME" ]]; then
         send_command "s"                    # Send start command to server
         TEST_START_TIME=$(get_response)     # Capture the test start date-time
-        ui_print "Test session started at: $TEST_START_TIME"
+        
+        local message="Test session started at: $TEST_START_TIME"
+        ui_print "$message"
+        log_message "INFO" "$message"
     else
-        ui_print "Test session already started..."
+        warning_print "Test session already started..."
     fi
 }
 
@@ -150,11 +154,14 @@ function submit_answer() {
         error_print "Error: No session started. Please start a session first."
         return 1
     fi
-    ui_print "Last question: $LAST_QUESTION"
+    message="Last question: $LAST_QUESTION"
+    ui_print "$message"
+    log_message "INFO" "$message"
     ui_print "Examples of answers: 1|3 (one-choice); 2|1,3 (multiple-choice); 3|my answer (text)."
     ui_print "Enter your answer (question|answer):" | tr '\n' ' '
     read -e -i "${LAST_QUESTION}|" -r user_answer
     send_command "a|$user_answer"
+    log_message "INFO" "Answer: $user_answer"
     local response=$(get_response)
     [[ "$response" =~ "Server response:" ]] && RESPONSE=true
     $RESPONSE && ui_print "$response"
@@ -218,7 +225,11 @@ function init_application() {
     
     # Placeholder for initialize logging functionality
 
-    ui_print "Client is starting..."
+    local message="Client is starting..."
+    ui_print "$message"
+    log_message "INFO" "$message"
+
+
     parse_arguments "$@"
     
     local pipe_client="/tmp/${USERNAME}_${TOPIC}_cbc_pipe"
