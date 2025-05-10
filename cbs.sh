@@ -17,7 +17,6 @@ RESULTS_FOLDER="./results"        # Folder to store results
 COURSES_FOLDER="./courses"        # Folder to store courses
 QUESTION_FILE="$COURSES_FOLDER/course.txt"      # Default question file for the course
 DESCRIPTION_FILE="$COURSES_FOLDER/course.des"   # Default description file for the course
-VERBOSE=false                     # Verbose output flag
 RESPONSE=false                    # Response output flag
 LINE_SEPARATOR=$'|\n'             # Line separator for questions
 NUM_SEPARATOR=$'|'                # Number separator for questions
@@ -46,7 +45,11 @@ function show_help() {
     ui_print "  -r, --response               Enable response to client about the correctness of the answer"
     ui_print "  -t n, --time n               Enable time-limited mode for answering questions (n minutes)"
     ui_print "  -u, --username               Specify username (required)"
-    ui_print "  -v, --verbose                Enable verbose output"
+    ui_print "  -v                           Logging level for CRIT messages and above"
+    ui_print "  -vv                          Logging level for ERR messages and above"
+    ui_print "  -vvv                         Logging level for WARNING messages and above"
+    ui_print "  -vvvv                        Logging level for INFO messages and above"
+    ui_print "  -vvvvv                       Logging level for DEBUG messages and above"
 }
 
 # Function: Parse command-line arguments
@@ -60,10 +63,14 @@ function parse_arguments() {
             -r|--response) RESPONSE=true ;;
             -t|--time) TEST_DURATION="$2"; shift ;;
             -u|--username) USERNAME="$2"; shift ;;
-            -v|--verbose) VERBOSE=true ;;
-            *)  show_help
-                error_print "Error: Unknown option: $1"
-                exit_program $ERR_OPTION ;;
+            -v) LOGGING_LEVEL=$CRIT ;;
+            -vv) LOGGING_LEVEL=$ERR ;;
+            -vvv) LOGGING_LEVEL=$WARN ;;
+            -vvvv) LOGGING_LEVEL=$INFO ;;
+            -vvvvv) LOGGING_LEVEL=$DEBUG ;;
+            *) show_help
+               error_print "Error: Unknown option: $1"
+               exit_program $ERR_OPTION ;;
         esac
         shift
     done
@@ -77,10 +84,11 @@ function parse_arguments() {
         exit_program $ERR_OPTION
     fi
 
-    verbose_print "Username: $USERNAME"
-    verbose_print "Response: $RESPONSE"
-    verbose_print "Verbose: $VERBOSE"
-    verbose_print "Test duration: $TEST_DURATION minutes"
+    log_message $EMERG "INFO" "Logging level: $LOGGING_LEVEL"
+    log_message $EMERG "INFO" "Username: $USERNAME"
+    info_print "Response: $RESPONSE"
+    info_print "Logging level: $LOGGING_LEVEL"
+    info_print "Test duration: $TEST_DURATION minutes"
 }
 
 # Function: Load course description
@@ -90,7 +98,7 @@ function load_course_description() {
         exit_program $ERR_FILE
     fi
 
-    verbose_print "Loading course description from file: $DESCRIPTION_FILE"
+    info_print "Loading course description from file: $DESCRIPTION_FILE"
     local course_line
     course_line=$(grep -E "^$TOPIC|" "$DESCRIPTION_FILE")
     if [[ -z "$course_line" ]]; then
@@ -109,9 +117,9 @@ function load_course_description() {
         exit_program $ERR_FILE
     fi
 
-    verbose_print "Topic: $TOPIC"
-    verbose_print "Course: $COURSE_NAME"
-    verbose_print "Difficulty: $DIFFICULTY_NAME"
+    log_message $EMERG "INFO" "Topic: $TOPIC"
+    log_message $EMERG "INFO" "Course: $COURSE_NAME"
+    info_print "Difficulty: $DIFFICULTY_NAME"
 }
 
 # Function: Load questions from the file
@@ -120,7 +128,7 @@ function load_questions() {
         error_print "Error: Question file not found: $QUESTION_FILE"
         exit_program $ERR_FILE
     fi
-    verbose_print "Loading questions from file: $QUESTION_FILE"
+    info_print "Loading questions from file: $QUESTION_FILE"
     mapfile -t QUESTIONS < "$QUESTION_FILE"
 }
 
@@ -131,6 +139,7 @@ function send_answer() {
     validate_pipe "$PIPE_CLIENT" "$APP_NAME"
 
     if [[ -n "$answer" ]]; then
+        log_message $DEBUG "DEBUG" "$answer"
         ui_print "$answer" | tee "$PIPE_CLIENT"
     fi
 }
@@ -142,9 +151,9 @@ function send_question() {
 
     ui_print "Send question number $question_number command received. Sending question..."
     if [[ -z "$question_line" ]]; then
-        error_print "> Error: Question $question_number not found."
+        send_answer "> Error: Question $question_number not found."
     else
-      verbose_print "Sending question $question_number to client..."
+      info_print "Sending question $question_number to client..."
       IFS="$LINE_SEPARATOR" read -t 1 -r number question type options correct <<< "$question_line"
       if [[ "$type" == "text" ]]; then
         send_answer "> Question $question_number| $question $options ($type)"
@@ -192,9 +201,8 @@ function display_progress() {
     done
     progress_list=${progress_list% }    # Remove trailing space
     repeat_list=${repeat_list% }
-    echo "Progress: $progress_list" > "$PIPE_CLIENT"
-    sleep $SEND_DELAY
-    echo "Repeat: $repeat_list" > "$PIPE_CLIENT"
+    send_answer "Progress: $progress_list"
+    send_answer "Repeat: $repeat_list"
     send_stop "$PIPE_CLIENT"
 }
 
@@ -220,7 +228,7 @@ function mark_question_for_later() {
         unset REPEAT_QUESTIONS[$(($question_number))]
         send_answer "Question $question_number is not marked for answering later."
     fi
-    verbose_print "$(declare -p REPEAT_QUESTIONS | sed 's/^declare -a //')"
+    info_print "$(declare -p REPEAT_QUESTIONS | sed 's/^declare -a //')"
     send_stop "$PIPE_CLIENT"
 }
 
@@ -229,7 +237,7 @@ function start_test_session() {
     ui_print "Start command received. Starting question-answer session..."
     if [[ -z "$TEST_START_TIME" ]]; then
         TEST_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
-        verbose_print "Test session started at: $TEST_START_TIME"
+        info_print "Test session started at: $TEST_START_TIME"
     else
         warning_print "Test session already started at: $TEST_START_TIME"
     fi
@@ -245,7 +253,7 @@ function process_answer() {
     local user_answer="${answer_data#*|}"       # Extract user answer
 
     ui_print "Answer command received. Processing answer..."
-    verbose_print "Question number: $question_number"
+    info_print "Question number: $question_number"
 
     # Check if the question has already been answered
     if [[ " ${!ANSWERED_QUESTIONS[@]} " == *" $question_number "* ]]; then
@@ -288,12 +296,14 @@ function process_answer() {
     fi
 
     # Debugging
-    verbose_print "Normalized user answer: ${user_answer,,}"
-    verbose_print "Normalized correct answer: ${correct,,}"
-    verbose_print "$(declare -p ANSWERED_QUESTIONS | sed 's/^declare -a //')"
+    info_print "Normalized user answer: ${user_answer,,}"
+    info_print "Normalized correct answer: ${correct,,}"
+    info_print "$(declare -p ANSWERED_QUESTIONS | sed 's/^declare -a //')"
 
     # Send response to the client
-    ui_print "Server response: $response"
+    local message="Server response: $response"
+    log_message $INFO "INFO" "$message"
+    ui_print "$message"
     $RESPONSE && echo "Server response: $response" > "$PIPE_CLIENT"
     send_stop "$PIPE_CLIENT"
 }
@@ -316,7 +326,7 @@ function calculate_remaining_time() {
 function is_time_remaining() {
     if [[ "$TEST_DURATION" -gt 0 ]]; then
         local remaining_time=$(calculate_remaining_time)
-        verbose_print "Remaining time: $remaining_time minutes"
+        info_print "Remaining time: $remaining_time minutes"
         [[ "$remaining_time" -gt 0 ]]
     else
         return 0  # No time limit
@@ -341,10 +351,13 @@ function handle_time_command() {
         echo "Test started at: $TEST_START_TIME (No time limit)" > "$PIPE_CLIENT"
     else
         [[ -z "$TEST_START_TIME" ]] \
-            && echo "Test started at: hasn't started" > "$PIPE_CLIENT" \
-            || echo "Test started at: $TEST_START_TIME" > "$PIPE_CLIENT"
+            && send_answer "Test started at: hasn't started" \
+            || send_answer "Test started at: $TEST_START_TIME"
+            # && echo "Test started at: hasn't started" > "$PIPE_CLIENT" \
+            # || echo "Test started at: $TEST_START_TIME" > "$PIPE_CLIENT"
         sleep $SEND_DELAY
-        echo "Remaining time: $remaining_time minutes" > "$PIPE_CLIENT"
+        send_answer "Remaining time: $remaining_time minutes"
+        # echo "Remaining time: $remaining_time minutes" > "$PIPE_CLIENT"
     fi
     send_stop "$PIPE_CLIENT"
 }
@@ -355,7 +368,8 @@ function time_is_up() {
     local remaining_time=$(calculate_remaining_time)
     
     if [[ "$remaining_time" -le 0 ]]; then
-        echo "Time is up. No further commands are allowed." > "$PIPE_CLIENT"
+        send_answer "Time is up. No further commands are allowed."
+        # echo "Time is up. No further commands are allowed." > "$PIPE_CLIENT"
         send_stop "$PIPE_CLIENT"
         return 1
     fi
@@ -389,7 +403,7 @@ function calculate_final_result() {
     # Generate the user's results file
     local timestamp=$(date -d "$TEST_START_TIME" '+%Y%m%d_%H%M')
     local result_file="${USERNAME}_${TOPIC}_${timestamp}.txt"
-    verbose_print "Generating user's results file: $result_file"
+    info_print "Generating user's results file: $result_file"
 
     {
         echo "Username: $USERNAME"
@@ -414,7 +428,9 @@ function calculate_final_result() {
     } > "$RESULTS_FOLDER/$result_file"
 
     # Send the final result to the client
-    echo "Final Result: $percentage%" > "$PIPE_CLIENT"
+    local message="Final Result: $percentage%"
+    log_message $EMERG "INFO" "$message"
+    ui_print "$message" | tee "$PIPE_CLIENT"
     send_stop "$PIPE_CLIENT"
 
     quit_program
@@ -434,7 +450,7 @@ function init_application() {
     
     local message="Server is starting..."
     ui_print "$message"
-    log_message "INFO" "$message"
+    log_message $EMERG "INFO" "$message"
 
     parse_arguments "$@"
 
@@ -453,14 +469,14 @@ function init_application() {
 
     load_questions
     
-    verbose_print "Server is running. Waiting for client input..."
+    info_print "Server is running. Waiting for client input..."
 }
 
 # Function: Process client commands
 function process_command() {
     local command="$1"
 
-    verbose_print "Received command: $command"
+    info_print "Received command: $command"
     case "$command" in
         i)  send_session_info ;;
         s)  start_test_session ;;
