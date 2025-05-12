@@ -2,15 +2,21 @@
 
 # cbl.sh
 
-# CBS - Coach Bash Library
-# This script implements the library functionality for the Coach Bash project.
+# (c) 2025 Yakiv Koliada. Coach Ba software. All rights reserved.
+# This program is free software: you can redistribute it and/or modify
+# it under the terms version 3.0 of the GNU General Public License as published by
+# the Free Software Foundation. This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY. See the GNU General Public License for more details.
+
+# CBS - Coach Ba Library
+# This script implements the library functionality for the Coach Ba software.
 # It provides common functions and constants used by both the server and client scripts.
 # It is not intended to be run directly.
 
 # Default values
 APP_NAME="cbl"                      # Application name
 LOG_FOLDER="./logs"                 # Folder to store courses
-SEND_DELAY=0.01                     # Delay for sending
+SEND_DELAY=0.00                     # Delay for sending
 SEND_STOP="send_stop"               # Stop sending command
 REQUIRED_LOGGING=0                  # Required logging level (MUST)
 

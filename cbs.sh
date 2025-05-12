@@ -2,8 +2,14 @@
 
 # cbs.sh
 
-# CBS - Coach Bash Server
-# This script implements the server-side functionality for the Coach Bash project.
+# (c) 2025 Yakiv Koliada. Coach Ba software. All rights reserved.
+# This program is free software: you can redistribute it and/or modify
+# it under the terms version 3.0 of the GNU General Public License as published by
+# the Free Software Foundation. This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY. See the GNU General Public License for more details.
+
+# CBS - Coach Ba Server
+# This script implements the server-side functionality for the Coach Ba software.
 # It uses a named pipe for communication with the client.
 
 # Include the common library functions
