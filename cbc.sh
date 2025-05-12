@@ -246,9 +246,9 @@ function init_application() {
     ui_print "$message"
     log_message $EMERG "INFO" "$message"
 
-
     parse_arguments "$@"
     
+    # Create the named pipe for server-client communication
     local pipe_client="/tmp/${USERNAME}_${TOPIC}_cbc_pipe"
     PIPE_CLIENT="${pipe_client:-${PIPE_CLIENT}}"
     create_pipe "$PIPE_CLIENT" "$0"

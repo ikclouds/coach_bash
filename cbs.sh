@@ -99,6 +99,10 @@ function parse_arguments() {
 
 # Function: Load course description
 function load_course_description() {
+    # Ensure the course directories exist
+    [[ ! -d "${COURSES_FOLDER}" ]] &&  mkdir -p "$COURSES_FOLDER"
+    [[ ! -d "${RESULTS_FOLDER}" ]] &&  mkdir -p "$RESULTS_FOLDER"
+
     if [[ ! -f "$DESCRIPTION_FILE" ]]; then
         error_print "Error: Course description file not found: $DESCRIPTION_FILE"
         exit_program $ERR_FILE
@@ -452,18 +456,13 @@ function init_application() {
     # Set trap to handle errors
     trap "error_handler" ERR
 
-    # Ensure the course directories exist
-    [[ ! -d "${COURSES_FOLDER}" ]] &&  mkdir -p "$COURSES_FOLDER"
-    [[ ! -d "${RESULTS_FOLDER}" ]] &&  mkdir -p "$RESULTS_FOLDER"
-    
     local message="Server is starting..."
     ui_print "$message"
     log_message $EMERG "INFO" "$message"
 
     parse_arguments "$@"
 
-    load_course_description
-
+    # Create the named pipe for server-client communication
     local pipe_server="/tmp/${USERNAME}_${TOPIC}_cbs_pipe"
     PIPE_SERVER="${pipe_server:-${PIPE_SERVER}}"
     create_pipe "$PIPE_SERVER" "$0"
@@ -475,6 +474,8 @@ function init_application() {
     # Set trap to clean up on exit
     trap "cleanup $PIPE_SERVER" EXIT
 
+    # Load the course description and questions
+    load_course_description
     load_questions
     
     info_print "Server is running. Waiting for client input..."
