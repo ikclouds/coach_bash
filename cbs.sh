@@ -452,7 +452,9 @@ function init_application() {
     # Set trap to handle errors
     trap "error_handler" ERR
 
-    # Placeholder for initialize logging functionality
+    # Ensure the course directories exist
+    [[ ! -d "${COURSES_FOLDER}" ]] &&  mkdir -p "$COURSES_FOLDER"
+    [[ ! -d "${RESULTS_FOLDER}" ]] &&  mkdir -p "$RESULTS_FOLDER"
     
     local message="Server is starting..."
     ui_print "$message"
