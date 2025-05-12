@@ -73,6 +73,26 @@ The project is designed to be modular, secure, and extensible, with all question
    chmod +x cbc.sh cbs.sh
    ```
 
+5. Install Linux and run Bash:
+   - Windows 10+
+
+    ```console
+    # Install WSL under Administrator
+    wsl --install
+
+    # Run Bash
+    wsl
+    # or
+    bash
+    ```
+
+   - Linux
+
+    ```bash
+    # Run Bash
+    bash
+    ```
+
 ## Usage
 
 - Start the Server
