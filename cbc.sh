@@ -14,6 +14,7 @@ APP_NAME="cbc"                    # Application name
 PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
 PIPE_CLIENT="/tmp/cbc_pipe"       # Default named pipe for client
 RESPONSE=false                    # Response output flag
+EXTENDED=false                    # Extended information flag
 
 # State variables
 USERNAME=""                       # Username of the client
@@ -27,6 +28,7 @@ function show_help() {
     ui_print "Usage: ./cbc.sh [options] [command]"
     ui_print "Options:"
     ui_print "  -h, --help      Show this help message and exit"
+    ui_print "  -e, --extended  Show extended information (time, course)"
     ui_print "  -p, --pipe      Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
     ui_print "  -t, --topic     Specify topic (required)"
     ui_print "  -u, --username  Specify username (required)"
@@ -58,6 +60,7 @@ function parse_arguments() {
     while [[ "$#" -gt 0 ]]; do
         case $1 in
             -h|--help) show_help; exit_program $ERR_NO ;;
+            -e|--extended) EXTENDED=true ;;
             -p|--pipe) PIPE_CLIENT="$2"; shift ;;
             -t|--topic) TOPIC="$2"; shift ;;
             -u|--username) USERNAME="$2"; shift ;;
@@ -259,11 +262,13 @@ function process_command() {
     local command="$1"
     LAST_COMMAND="$command"
 
-    [[ ! "i" =~ "${command}" ]] && display_session_info
-    [[ ! "tsi" =~ "${command}" ]] && display_remaining_time
+    if $EXTENDED; then
+        [[ ! "i" =~ "${command}" ]] && display_session_info
+        [[ ! "tsi" =~ "${command}" ]] && display_remaining_time
+    fi
     info_print "Entered: $command"
     case "$command" in
-        h)  show_commands ;;
+        h)  show_commands ;;        
         s)  start_test_session ;;
         l)  list_questions "$command" ;;
         i)  display_session_info ;;
