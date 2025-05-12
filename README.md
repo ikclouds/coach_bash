@@ -10,14 +10,6 @@ The **Coach Ba** software is a Bash-based testing environment that allows users 
 
 The project is designed to be modular, secure, and extensible, with all questions, answers, and user results stored in separate files.
 
----
-
-## Licensing
-
-The `Coach Ba` software is published under the [GNU General Public License 3.0](https://www.gnu.org/licenses/gpl-3.0.en.html)
-
----
-
 ## Features
 
 ### General
@@ -54,29 +46,110 @@ The `Coach Ba` software is published under the [GNU General Public License 3.0](
 - Provides immediate feedback on answers or final results at the end of the session.
 - Handles unexpected scenarios, such as missing files or crashes.
 
----
-
 ## Installation
 
 1. Clone the repository:
 
+    ```bash
+    git clone https://github.com/your-repo/coach_bash.git
+    cd coach_bash
+    ```
+
+2. Set up the environment:
+   - Create a .env file to define default values for CB_USERNAME and CB_TOPIC:
+
    ```bash
-   git clone https://github.com/your-repo/coach_bash.git
-   cd coach_bash
+   export CB_USERNAME=user
+   export CB_TOPIC=PLLB10001001
    ```
 
-## Run
+3. Ensure the required files are available:
+    - `courses/course.txt`: Contains questions and answers.
+    - `courses/course.des`: Contains course descriptions.
 
-1. Run **Server (`cbs.sh`)**:
+4. Set executable permissions for the scripts:
 
-    ```bash
-    . ./.env            # set environment variables
-    ./cbs.sh -r         # run server in response mode
-    ```
+   ```bash
+   chmod +x cbc.sh cbs.sh
+   ```
 
-2. Run **Client (`cbc.sh`)**:
+## Usage
 
-    ```bash
-    . ./.env            # set environment variables
-    ./cbc.sh            # run client
-    ```
+- Start the Server
+
+Run the server with the required options:
+
+```bash
+# Set environment variables
+./.env
+
+# Start the Server, no time limitation
+./cbs.sh -r > /dev/null &
+
+# Start the Server, 10 min limitation
+./cbs.sh -r -t 10 > /dev/null &
+```
+
+- Start the Client
+
+Run the client with the required options:
+
+```bash
+# Set environment variables
+./.env
+
+# Start the Server
+cbc.sh
+```
+
+- **Client Commands**:
+  - `s`: Start the session.
+  - `t`: Show remaining time or test start time.
+  - `l`: List all questions.
+  - `p`: Show progress.
+  - `number`: Request a specific question (e.g.: 1).
+  - `a`: Submit an answer.
+  - `r`: Mark a question for later.
+  - `f`: Finish the session.
+  - `q`: Quit the session.
+
+---
+
+### File Structure
+
+- `cbc.sh`: Client script.
+- `cbs.sh`: Server script.
+- `cbl.sh`: Shared library for common functions.
+- `courses/course.txt`: Contains questions and answers.
+- `courses/course.des`: Contains course descriptions.
+- `logs/`: Directory for log files.
+- `results/`: Directory for user result files.
+
+### Logging
+
+- Log files are stored in the logs/ directory.
+- Log file format: user_topic_application.log.
+- Log entry format: Date-time|Logging level|Username|Topic|Message.
+- Five verbosity levels:
+  - `-v`: CRIT level.
+  - `-vv`: ERR level.
+  - `-vvv`: WARNING level.
+  - `-vvvv`: INFO level.
+  - `-vvvvv`: DEBUG level.
+
+## Security
+
+- Named pipes and files are readable and writable only by the owner and group.
+- Environment variables (CB_USERNAME and CB_TOPIC) can be used as fallbacks for command-line options.
+
+## License
+
+This project is licensed under the [GNU General Public License 3.0](https://www.gnu.org/licenses/gpl-3.0.en.html). See the LICENSE file for details.
+
+## Authors
+
+- Yakiv Koliada / ikclouds (ik - Nickname)
+
+## Acknowledgments
+
+Special thanks to the open-source community and commercial companies for providing great tools and inspiration for this project: `Linux`, `Bash`, `Visual Studio Code`, `WSL`, `GitHub Copilot`.
