@@ -147,7 +147,7 @@ function error_handler() {
     lineno="${lineno% 0}"
     lineno="${lineno// / > }"
     
-    error_print "Error: '$function_name' at line ${lineno}."
+    error_print "Error: '$function_name' at line ${lineno}, command: ${BASH_COMMAND}."
 }
 
 # Function: Create the named pipe

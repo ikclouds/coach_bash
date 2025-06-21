@@ -12,6 +12,9 @@
 # This script implements the client-side functionality for the Coach Ba software.
 # It communicates with the server using a named pipe.
 
+# Disable exit on error to allow for custom error handling
+set +e 
+
 # Include the common library functions
 . "./cbl.sh"
 
@@ -172,6 +175,11 @@ function submit_answer() {
         error_print "Error: No session started. Please start a session first."
         return
     fi
+    local remaining_time=$(get_remaining_time)
+    if [[ "$remaining_time" =~ "Time is up" ]]; then
+        ui_print "Time is up. No further commands are allowed."
+        return
+    fi
     message="Last question: $LAST_QUESTION"
     ui_print "$message"
     log_message $INFO "INFO" "$message"
@@ -215,6 +223,13 @@ function display_remaining_time() {
     send_command "t"
     local time_info=$(get_response)
     ui_print "$time_info"
+}
+
+# Function: Get remaining time
+function get_remaining_time() {
+    send_command "l"
+    local time_info=$(get_response)
+    echo "$time_info"
 }
 
 # Function: Display course information

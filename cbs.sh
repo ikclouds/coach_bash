@@ -12,6 +12,9 @@
 # This script implements the server-side functionality for the Coach Ba software.
 # It uses a named pipe for communication with the client.
 
+# Disable exit on error to allow for custom error handling
+set +e 
+
 # Include the common library functions
 . "./cbl.sh"
 
@@ -332,8 +335,12 @@ function calculate_remaining_time() {
         local current_time=$(date '+%s')
         local start_time=$(date -d "${TEST_START_TIME:=$(date -d@$current_time)}" '+%s')
         local elapsed_time=$((current_time - start_time))
-        local remaining_time=$((((TEST_DURATION) * 60 - elapsed_time) / 60))
-        [[ -n $TEST_START_TIME && $TEST_DURATION = "1" ]] && ((remaining_time++)) # Add 1 minute for 1 minute test
+        (( elapsed_time <= 60 )) && elapsed_time=0  # Ensure at least 1 minute for elapsed time
+        if (( elapsed_time > (TEST_DURATION * 60) )); then
+            local remaining_time=0
+        else
+            local remaining_time=$((((TEST_DURATION) * 60 - elapsed_time) / 60))
+        fi
         echo "$remaining_time"
     else
         echo "-1"  # No time limit
@@ -345,18 +352,22 @@ function is_time_remaining() {
     if [[ "$TEST_DURATION" -gt 0 ]]; then
         local remaining_time=$(calculate_remaining_time)
         info_print "Remaining time: $remaining_time minutes"
-        [[ "$remaining_time" -gt 0 ]]
+        if [[ "$remaining_time" -gt 0 ]]; then
+            echo "True"  # Time is remaining
+        else 
+            echo "False" # Time is up
+        fi        
     else
-        return 0  # No time limit
+        echo "True"  # No time limit
     fi
 }
 
 # Function: Check if session is started
 function is_session_started() {
     if [[ -z "$TEST_START_TIME" ]]; then
-        return 1
+        echo "False" # Session is not started
     else
-        return 0
+        echo "True"  # Session is started
     fi
 }
 
@@ -366,32 +377,24 @@ function handle_time_command() {
     local remaining_time=$(calculate_remaining_time)
 
     if [[ "$remaining_time" -lt 0 ]]; then
-        echo "Test started at: $TEST_START_TIME (No time limit)" > "$PIPE_CLIENT"
+        echo "Test started at: $TEST_START_TIME, $(calculate_time_taken) minute(s) ago (No time limit)" > "$PIPE_CLIENT"
     else
         [[ -z "$TEST_START_TIME" ]] \
             && send_answer "Test started at: hasn't started" \
-            || send_answer "Test started at: $TEST_START_TIME"
-            # && echo "Test started at: hasn't started" > "$PIPE_CLIENT" \
-            # || echo "Test started at: $TEST_START_TIME" > "$PIPE_CLIENT"
-        sleep $SEND_DELAY
-        send_answer "Remaining time: $remaining_time minutes"
-        # echo "Remaining time: $remaining_time minutes" > "$PIPE_CLIENT"
+            || send_answer "Test started at: $TEST_START_TIME, $(calculate_time_taken) minute(s) ago"
+        send_answer "Remaining time: $remaining_time minute(s)"
     fi
     send_stop "$PIPE_CLIENT"
 }
 
 # Function: Time is up
 function time_is_up() {
-    ui_print "Time is up. No further commands are allowed."
     local remaining_time=$(calculate_remaining_time)
     
     if [[ "$remaining_time" -le 0 ]]; then
         send_answer "Time is up. No further commands are allowed."
-        # echo "Time is up. No further commands are allowed." > "$PIPE_CLIENT"
         send_stop "$PIPE_CLIENT"
-        return 1
     fi
-    return 0
 }
 
 # Function: Calculate time taken
@@ -399,9 +402,13 @@ function calculate_time_taken() {
     local current_time=$(date '+%s')
     local start_time=$(date -d "$TEST_START_TIME" '+%s')
 
-    time_taken=$((current_time - start_time))
-    (( time_taken <= 60 )) && time_taken=60
-    echo $((time_taken / 60))
+    if [[ -z "$TEST_START_TIME" ]]; then
+        echo "0"  # No time taken
+    else
+        time_taken=$((current_time - start_time))
+        (( time_taken <= 60 )) && time_taken=60
+        echo $((time_taken / 60))
+    fi
 }
 
 # Function: Calculate the final result
@@ -499,10 +506,10 @@ function process_command() {
         i)  send_session_info ;;
         s)  start_test_session ;;
         l|a|a\|*|[0-9]*|r|r\|*)
-            if ! is_session_started; then
+            if [[ $(is_session_started) == "False" ]]; then
                 session_is_not_started
                 return
-            elif is_time_remaining; then
+            elif [[ $(is_time_remaining) == "True" ]]; then
                 case "$command" in
                     l)  list_questions ;;
                     a\|*)  process_answer "${command#*|}" ;;
