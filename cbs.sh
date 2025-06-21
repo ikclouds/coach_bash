@@ -46,11 +46,12 @@ function show_help() {
     ui_print "Options:"
     ui_print "  -d file, --description file  Specify the description file to use (default: ./course_des.txt)"
     ui_print "  -h, --help                   Show this help message and exit"
+    ui_print "  -l n, --limit-time n         Enable time-limited mode for answering questions (n minutes)"
     ui_print "  -p file, --pipe file         Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
     ui_print "  -q file, --questions file    Specify the question file to use (default: ./course.txt)"
     ui_print "  -r, --response               Enable response to client about the correctness of the answer"
-    ui_print "  -t n, --time n               Enable time-limited mode for answering questions (n minutes)"
-    ui_print "  -u, --username               Specify username (required)"
+    ui_print "  -t topic, --topic topic      Specify the topic (course code) to use (required)"
+    ui_print "  -u user, --username user     Specify username (required)"
     ui_print "  -v                           Logging level for CRIT messages and above"
     ui_print "  -vv                          Logging level for ERR messages and above"
     ui_print "  -vvv                         Logging level for WARNING messages and above"
@@ -67,7 +68,8 @@ function parse_arguments() {
             -p|--pipe) PIPE_SERVER="$2"; shift ;;
             -q|--questions) QUESTION_FILE="$2"; shift ;;
             -r|--response) RESPONSE=true ;;
-            -t|--time) TEST_DURATION="$2"; shift ;;
+            -t|--topic) TOPIC="$2"; shift ;;
+            -l|--limit-time) TEST_DURATION="$2"; shift ;;
             -u|--username) USERNAME="$2"; shift ;;
             -v) LOGGING_LEVEL=$CRIT ;;
             -vv) LOGGING_LEVEL=$ERR ;;
@@ -83,15 +85,17 @@ function parse_arguments() {
 
     # Use environment variables if command-line options are not provided
     USERNAME="${USERNAME:-$CB_USERNAME}"
+    TOPIC="${TOPIC:-$CB_TOPIC}"
 
-    # Validate username
-    if [[ -z "$USERNAME" ]]; then
-        error_print "Error: Username is required. Use the -u option or set CB_USERNAME env variable."
+    # Validate username and topic
+    if [[ -z "$USERNAME" || -z "$TOPIC" ]]; then
+        error_print "Error: Username and topic are required. Use the -u and -t options or set CB_USERNAME and CB_TOPIC env variables."
         exit_program $ERR_OPTION
     fi
 
     log_message $EMERG "INFO" "Logging level: $LOGGING_LEVEL"
     log_message $EMERG "INFO" "Username: $USERNAME"
+    log_message $EMERG "INFO" "Topic: $TOPIC"
     info_print "Response: $RESPONSE"
     info_print "Logging level: $LOGGING_LEVEL"
     info_print "Test duration: $TEST_DURATION minutes"
@@ -287,7 +291,9 @@ function process_answer() {
          # Check if the user answer matches the correct answer
         if [[ "${user_answer,,}" == "${correct,,}" ]]; then
             ANSWERED_QUESTIONS["$question_number"]="1"
-            response="Correct"
+            response="Correct (${correct})"
+        else
+            response="Incorrect (Correct: ${correct})"
         fi
     elif [[ "$type" == "text" ]]; then
         # Normalize answer for comparison, one space is allowed
@@ -297,8 +303,10 @@ function process_answer() {
         for correct in "${correct_answers[@]}"; do
             if [[ "${user_answer,,}" == "${correct,,}" ]]; then
                 ANSWERED_QUESTIONS["$question_number"]="1"
-                response="Correct"
+                response="Correct (${correct})"
                 break
+            else
+                response="Incorrect (Correct: ${correct})"            
             fi
         done
     else
@@ -458,9 +466,10 @@ function init_application() {
 
     local message="Server is starting..."
     ui_print "$message"
-    log_message $EMERG "INFO" "$message"
 
     parse_arguments "$@"
+
+    log_message $EMERG "INFO" "$message"
 
     # Create the named pipe for server-client communication
     local pipe_server="/tmp/${USERNAME}_${TOPIC}_cbs_pipe"

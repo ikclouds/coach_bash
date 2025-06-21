@@ -46,7 +46,7 @@ function log_message() {
     local topic="${TOPIC:=${CB_TOPIC}}"
 
     if [[ -z "$username" || -z "$topic" ]]; then
-        error_print "Error: Username and topic are required. Use the -u and -t options or set CB_USERNAME and CB_TOPIC env variables."
+        ui_print "Error: Username and topic are required. Use the -u and -t options or set CB_USERNAME and CB_TOPIC env variables."
         exit_program $ERR_OPTION
     fi
 
@@ -81,7 +81,9 @@ function error_print() {
     local message="$1"
 
     echo -e "\e[31m${message}\e[0m"  # Red
-    log_message $ERR "ERR" "$1"
+    if ! [[ -z "$username" || -z "$topic" ]]; then
+        log_message $ERR "ERR" "$1"
+    fi
 }
 
 # Function: Print critical error output
@@ -106,7 +108,7 @@ function debug_print() {
 function exit_program() {
     local message="Exiting program..."
     ui_print "$message"
-    log_message $EMERG "INFO" "$message"
+    ! [[ -z "$username" || -z "$topic" ]] && log_message $EMERG "INFO" "$message"
     exit "$1"
 }
 

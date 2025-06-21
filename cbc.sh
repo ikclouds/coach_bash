@@ -31,18 +31,18 @@ LAST_COMMAND=""                   # Last command entered by the user
 
 # Function: Display help
 function show_help() {
-    ui_print "Usage: ./cbc.sh [options] [command]"
+    ui_print "Usage: ./cbc.sh [options]"
     ui_print "Options:"
-    ui_print "  -h, --help      Show this help message and exit"
-    ui_print "  -e, --extended  Show extended information (time, course)"
-    ui_print "  -p, --pipe      Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
-    ui_print "  -t, --topic     Specify topic (required)"
-    ui_print "  -u, --username  Specify username (required)"
-    ui_print "  -v              Logging level for CRIT messages and above"
-    ui_print "  -vv             Logging level for ERR messages and above"
-    ui_print "  -vvv            Logging level for WARNING messages and above"
-    ui_print "  -vvvv           Logging level for INFO messages and above"
-    ui_print "  -vvvvv          Logging level for DEBUG messages and above"
+    ui_print "  -h, --help                   Show this help message and exit"
+    ui_print "  -e, --extended               Show extended information (time, course)"
+    ui_print "  -p file, --pipe file         Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
+    ui_print "  -t topic, --topic topic      Specify the topic (course code) to use (required)"
+    ui_print "  -u user, --username user     Specify username (required)"
+    ui_print "  -v                           Logging level for CRIT messages and above"
+    ui_print "  -vv                          Logging level for ERR messages and above"
+    ui_print "  -vvv                         Logging level for WARNING messages and above"
+    ui_print "  -vvvv                        Logging level for INFO messages and above"
+    ui_print "  -vvvvv                       Logging level for DEBUG messages and above"
     show_commands
 } 
 
@@ -72,7 +72,7 @@ function parse_arguments() {
             -u|--username) USERNAME="$2"; shift ;;
             -v) LOGGING_LEVEL=$CRIT ;;
             -vv) LOGGING_LEVEL=$ERR ;;
-            -vvv) LOGGING_LEVEL=$WARNING ;;
+            -vvv) LOGGING_LEVEL=$WARN ;;
             -vvvv) LOGGING_LEVEL=$INFO ;;
             -vvvvv) LOGGING_LEVEL=$DEBUG ;;
             *) show_help
@@ -170,7 +170,7 @@ function get_question () {
 function submit_answer() {
     if [[ -z "$TEST_START_TIME" ]]; then
         error_print "Error: No session started. Please start a session first."
-        return 1
+        return
     fi
     message="Last question: $LAST_QUESTION"
     ui_print "$message"
@@ -182,7 +182,9 @@ function submit_answer() {
     log_message $INFO "INFO" "Answer: $user_answer"
     local response=$(get_response)
     [[ "$response" =~ "Server response:" ]] && RESPONSE=true
-    $RESPONSE && ui_print "$response"
+    if $RESPONSE; then
+        ui_print "$response"
+    fi
 }
 
 # Function: Display progress of answers
@@ -244,10 +246,10 @@ function init_application() {
     
     local message="Client is starting..."
     ui_print "$message"
-    log_message $EMERG "INFO" "$message"
 
     parse_arguments "$@"
-    
+    log_message $EMERG "INFO" "$message"
+
     # Create the named pipe for server-client communication
     local pipe_client="/tmp/${USERNAME}_${TOPIC}_cbc_pipe"
     PIPE_CLIENT="${pipe_client:-${PIPE_CLIENT}}"
