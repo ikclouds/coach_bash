@@ -13,7 +13,7 @@
 # Pre-requisites:
 # sudo apt install acl
 
-declare -a cb_users=(ya)
+declare -a cb_users=(ya yk)
 declare -a cb_package=('cbc.sh' 'cbl.sh' '.env')
 declare CB_GROUP="cb"
 
