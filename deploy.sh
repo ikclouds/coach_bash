@@ -12,12 +12,32 @@
 
 # Pre-requisites:
 # sudo apt install acl
+# sudo apt install pwgen
 
 declare -a cb_users=(ya yk)
 declare -a cb_package=('cbc.sh' 'cbl.sh' '.env')
+declare -a linux_packages=('pwgen' 'acl')
 declare CB_GROUP="cb"
 
 getent group $CB_GROUP >/dev/null 2>&1 || groupadd -r $CB_GROUP
+
+# Function: Check if the necessary packages are installed, if not install them
+function check_and_install_packages() {
+    local packages=("$@")
+
+    for package in "${packages[@]}"; do
+        if ! dpkg -l $package > /dev/null 2>&1; then
+            echo "Package $package is not installed. Installing..."
+            apt-get install -y $package > /dev/null 2>&1
+            if [[ $? -ne 0 ]]; then
+                echo "Failed to install $package. Exiting."
+                exit 1
+            fi
+        else
+            echo "Package $package is already installed."
+        fi
+    done
+}
 
 # Function: Check if the user exists, if not create it
 function check_and_create_user() {
@@ -25,6 +45,9 @@ function check_and_create_user() {
 
     if ! id -u "$user" >/dev/null 2>&1; then
         useradd -m -s /bin/bash -G $CB_GROUP $user
+        local passwd="$(pwgen -s 12 -n 1)"
+        echo -n "$passwd" > .passwd
+        yes "$passwd" | passwd $user > /dev/null 2>&1
         echo "User: ${user}, created and added to group $CB_GROUP."
     else
         echo "User: ${user}, already exists."
@@ -80,6 +103,9 @@ function copy_package_files() {
     local user="$1"
 
     for package in "${cb_package[@]}"; do
+        [[ -f "/home/$user/bin/.env" && $package =~ '.env' ]] && \
+            grep CB_PW /home/$user/bin/.env | sed "s/export CB_PW=//" > .passwd
+
         mv "/home/$user/bin/$package" "$backup_dir/" 2>/dev/null
         if [[ $? -eq 0 ]]; then
             echo "User: ${user}, moved existing $package to backup directory."
@@ -91,6 +117,8 @@ function copy_package_files() {
                 if [[ $package =~ '.env' ]]; then
                     chmod 644 "/home/$user/bin/.env"
                     sed -i "s/CB_USERNAME=.*/CB_USERNAME=$user/" "/home/$user/bin/.env"
+                    sed -i "s/CB_PW=.*/CB_PW=$(cat .passwd)/" "/home/$user/bin/.env"
+                    echo -n "" > ".passwd"
                 else
                     chmod 755 "/home/$user/bin/$package"
                 fi
@@ -102,6 +130,9 @@ function copy_package_files() {
 
 # Function: Main function to orchestrate the deployment
 function main() {
+    # Check and install necessary packages
+    check_and_install_packages "${linux_packages[@]}"
+
     for user in "${cb_users[@]}"; do
         check_and_create_user "$user"
         check_and_create_bin_folder "$user"
