@@ -19,6 +19,7 @@ LOG_FOLDER="./logs"                 # Folder to store courses
 SEND_DELAY=0.00                     # Delay for sending
 SEND_STOP="send_stop"               # Stop sending command
 REQUIRED_LOGGING=0                  # Required logging level (MUST)
+CB_GROUP="cb"                       # Group name for Coach Ba
 
 # Logging levels
 EMERG=0                             # Mandatory logging
@@ -162,6 +163,14 @@ function create_pipe() {
 
     mkfifo "$pipe_name"
     chmod 660 "$pipe_name"  # Readable and writable only by owner and group
+
+    # Set group ownership to the shared group
+    if chgrp "$CB_GROUP" "$pipe_name" 2>/dev/null; then
+        info_print "Set group ownership to $CB_GROUP for $pipe_name"
+    else
+        warning_print "Could not set group ownership to $CB_GROUP for $pipe_name"
+    fi
+    
     info_print "Created named pipe for $pipe_app: $pipe_name"
 }
 

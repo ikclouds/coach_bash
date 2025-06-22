@@ -15,22 +15,24 @@
 # Disable exit on error to allow for custom error handling
 set +e 
 
-# Include the common library functions
-. "./cbl.sh"
+# Import externals
+. .env       # Environment variables
+. cbl.sh     # Common Bash Library for logging and utilities
 
 # Default values
-APP_NAME="cbc"                    # Application name
-PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
-PIPE_CLIENT="/tmp/cbc_pipe"       # Default named pipe for client
-RESPONSE=false                    # Response output flag
-EXTENDED=false                    # Extended information flag
+APP_NAME="cbc"                          # Application name
+PIPE_FOLDER="/opt/cb"                   # Default folder for named pipes
+PIPE_SERVER="/$PIPE_FOLDER/cbs_pipe"    # Default named pipe for server
+PIPE_CLIENT="/$PIPE_FOLDER/cbc_pipe"    # Default named pipe for client
+RESPONSE=false                          # Response output flag
+EXTENDED=false                          # Extended information flag
 
 # State variables
-USERNAME=""                       # Username of the client
-SESSION=""                        # Session info from the server
-TEST_START_TIME=""                # Test start date-time
-LAST_QUESTION=""                  # Last question number
-LAST_COMMAND=""                   # Last command entered by the user
+USERNAME=""                             # Username of the client
+SESSION=""                              # Session info from the server
+TEST_START_TIME=""                      # Test start date-time
+LAST_QUESTION=""                        # Last question number
+LAST_COMMAND=""                         # Last command entered by the user
 
 # Function: Display help
 function show_help() {
@@ -266,10 +268,10 @@ function init_application() {
     log_message $EMERG "INFO" "$message"
 
     # Create the named pipe for server-client communication
-    local pipe_client="/tmp/${USERNAME}_${TOPIC}_cbc_pipe"
+    local pipe_client="/$PIPE_FOLDER/${USERNAME}_${TOPIC}_cbc_pipe"
     PIPE_CLIENT="${pipe_client:-${PIPE_CLIENT}}"
     create_pipe "$PIPE_CLIENT" "$0"
-    local pipe_server="/tmp/${USERNAME}_${TOPIC}_cbs_pipe"
+    local pipe_server="/$PIPE_FOLDER/${USERNAME}_${TOPIC}_cbs_pipe"
     PIPE_SERVER="${pipe_server:-${PIPE_SERVER}}"
 
     # Set trap to handle crashes

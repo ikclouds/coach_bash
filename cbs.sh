@@ -15,33 +15,35 @@
 # Disable exit on error to allow for custom error handling
 set +e 
 
-# Include the common library functions
-. "./cbl.sh"
+# Import externals
+. .env       # Environment variables
+. cbl.sh     # Common Bash Library for logging and utilities
 
 # Default values
-APP_NAME="cbs"                    # Application name
-PIPE_SERVER="/tmp/cbs_pipe"       # Default named pipe for server
-PIPE_CLIENT="/tmp/cbc_pipe"       # Default named pipe for client
-RESULTS_FOLDER="./results"        # Folder to store results
-COURSES_FOLDER="./courses"        # Folder to store courses
+APP_NAME="cbs"                          # Application name
+PIPE_FOLDER="/opt/cb"                   # Default folder for named pipes
+PIPE_SERVER="$PIPE_FOLDER/cbs_pipe"     # Default named pipe for server
+PIPE_CLIENT="/$PIPE_FOLDER/cbc_pipe"    # Default named pipe for client
+RESULTS_FOLDER="./results"              # Folder to store results
+COURSES_FOLDER="./courses"              # Folder to store courses
 QUESTION_FILE="$COURSES_FOLDER/course.txt"      # Default question file for the course
 DESCRIPTION_FILE="$COURSES_FOLDER/course.des"   # Default description file for the course
-RESPONSE=false                    # Response output flag
-LINE_SEPARATOR=$'|\n'             # Line separator for questions
-NUM_SEPARATOR=$'|'                # Number separator for questions
-ANSWER_SEPARATOR=$'/'             # Answer separator
+RESPONSE=false                          # Response output flag
+LINE_SEPARATOR=$'|\n'                   # Line separator for questions
+NUM_SEPARATOR=$'|'                      # Number separator for questions
+ANSWER_SEPARATOR=$'/'                   # Answer separator
 
 # State variables
-USERNAME=""                       # Username of the client
-TOPIC=""                          # Topic (course code)
-COURSE_NAME=""                    # Course name
-DIFFICULTY_NAME=""                # Difficulty name
-TEST_START_TIME=                  # Test start date-time
-TEST_DURATION=0                   # Test duration in minutes (0 means no time limit)
-QUESTIONS=()                      # Array to store questions
-ANSWERED_QUESTIONS=()             # Array to track answered questions
-REPEAT_QUESTIONS=()               # Array to track questions marked for later
-LAST_QUESTION=""                  # Last question number
+USERNAME=""                             # Username of the client
+TOPIC=""                                # Topic (course code)
+COURSE_NAME=""                          # Course name
+DIFFICULTY_NAME=""                      # Difficulty name
+TEST_START_TIME=                        # Test start date-time
+TEST_DURATION=0                         # Test duration in minutes (0 means no time limit)
+QUESTIONS=()                            # Array to store questions
+ANSWERED_QUESTIONS=()                   # Array to track answered questions
+REPEAT_QUESTIONS=()                     # Array to track questions marked for later
+LAST_QUESTION=""                        # Last question number
 
 # Function: Display help
 function show_help() {
@@ -50,7 +52,7 @@ function show_help() {
     ui_print "  -d file, --description file  Specify the description file to use (default: ./course_des.txt)"
     ui_print "  -h, --help                   Show this help message and exit"
     ui_print "  -l n, --limit-time n         Enable time-limited mode for answering questions (n minutes)"
-    ui_print "  -p file, --pipe file         Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
+    ui_print "  -p file, --pipe file         Specify the name of the named pipe to use (default: /opt/cb/cbs_pipe)"
     ui_print "  -q file, --questions file    Specify the question file to use (default: ./course.txt)"
     ui_print "  -r, --response               Enable response to client about the correctness of the answer"
     ui_print "  -t topic, --topic topic      Specify the topic (course code) to use (required)"
@@ -479,10 +481,10 @@ function init_application() {
     log_message $EMERG "INFO" "$message"
 
     # Create the named pipe for server-client communication
-    local pipe_server="/tmp/${USERNAME}_${TOPIC}_cbs_pipe"
+    local pipe_server="/$PIPE_FOLDER/${USERNAME}_${TOPIC}_cbs_pipe"
     PIPE_SERVER="${pipe_server:-${PIPE_SERVER}}"
     create_pipe "$PIPE_SERVER" "$0"
-    local pipe_client="/tmp/${USERNAME}_${TOPIC}_cbc_pipe"
+    local pipe_client="/$PIPE_FOLDER/${USERNAME}_${TOPIC}_cbc_pipe"
     PIPE_CLIENT="${pipe_client:-${PIPE_CLIENT}}"
 
     # Set trap to handle crashes
