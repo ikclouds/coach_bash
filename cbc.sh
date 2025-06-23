@@ -12,6 +12,9 @@
 # This script implements the client-side functionality for the Coach Ba software.
 # It communicates with the server using a named pipe.
 
+# Usage:
+#   cbc.sh [-u <username>] [-t <topic>] [options]
+
 # Disable exit on error to allow for custom error handling
 set +e 
 
@@ -36,13 +39,13 @@ LAST_COMMAND=""                         # Last command entered by the user
 
 # Function: Display help
 function show_help() {
-    ui_print "Usage: ./cbc.sh [options]"
+    ui_print "cbc.sh [-u <username>] [-t <topic>] [options]"
     ui_print "Options:"
     ui_print "  -h, --help                   Show this help message and exit"
     ui_print "  -e, --extended               Show extended information (time, course)"
     ui_print "  -p file, --pipe file         Specify the name of the named pipe to use (default: /tmp/cbs_pipe)"
-    ui_print "  -t topic, --topic topic      Specify the topic (course code) to use (required)"
-    ui_print "  -u user, --username user     Specify username (required)"
+    ui_print "  -t topic, --topic topic      Specify the topic (course code) to use (required or set CB_TOPIC env variable)"
+    ui_print "  -u user, --username user     Specify username (required or set CB_USERNAME env variable)"
     ui_print "  -v                           Logging level for CRIT messages and above"
     ui_print "  -vv                          Logging level for ERR messages and above"
     ui_print "  -vvv                         Logging level for WARNING messages and above"

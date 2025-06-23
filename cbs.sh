@@ -12,6 +12,9 @@
 # This script implements the server-side functionality for the Coach Ba software.
 # It uses a named pipe for communication with the client.
 
+# Usage:
+#   cbs.sh [-u <username>] [-t <topic>] [options]
+
 # Disable exit on error to allow for custom error handling
 set +e 
 
@@ -47,7 +50,7 @@ LAST_QUESTION=""                        # Last question number
 
 # Function: Display help
 function show_help() {
-    ui_print "Usage: ./cbs.sh [options]"
+    ui_print "Usage: ./cbs.sh [-u <username>] [-t <topic>] [options]"
     ui_print "Options:"
     ui_print "  -d file, --description file  Specify the description file to use (default: ./course_des.txt)"
     ui_print "  -h, --help                   Show this help message and exit"
@@ -55,8 +58,8 @@ function show_help() {
     ui_print "  -p file, --pipe file         Specify the name of the named pipe to use (default: /opt/cb/cbs_pipe)"
     ui_print "  -q file, --questions file    Specify the question file to use (default: ./course.txt)"
     ui_print "  -r, --response               Enable response to client about the correctness of the answer"
-    ui_print "  -t topic, --topic topic      Specify the topic (course code) to use (required)"
-    ui_print "  -u user, --username user     Specify username (required)"
+    ui_print "  -t topic, --topic topic      Specify the topic (course code) to use (required or set CB_TOPIC env variable)"
+    ui_print "  -u user, --username user     Specify username (required or set CB_USERNAME env variable)"
     ui_print "  -v                           Logging level for CRIT messages and above"
     ui_print "  -vv                          Logging level for ERR messages and above"
     ui_print "  -vvv                         Logging level for WARNING messages and above"

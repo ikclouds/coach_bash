@@ -11,8 +11,14 @@
 # This script deploys the Coach Ba software by creating users, groups, and copying necessary files.
 
 # Pre-requisites:
-# sudo apt install acl
-# sudo apt install pwgen
+#   sudo apt install acl
+#   sudo apt install pwgen
+
+# Usage:
+#   sudo -u root ./deploy.sh
+#   wsl -u user
+#   echo $PATH | grep -wo "/home/user/bin"
+#   cbc.sh
 
 declare -a cb_users=(ya yk)
 declare -a cb_package=('cbc.sh' 'cbl.sh' '.env')
