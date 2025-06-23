@@ -1,0 +1,2 @@
+PLLB10001001|Linux Bash - fundamentals|beginner
+PLPY10001001|Python - module 0 - setup and development environment|Intermediate

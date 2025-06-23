@@ -32,9 +32,9 @@ COURSES_FOLDER="./courses"              # Folder to store courses
 QUESTION_FILE="$COURSES_FOLDER/course.txt"      # Default question file for the course
 DESCRIPTION_FILE="$COURSES_FOLDER/course.des"   # Default description file for the course
 RESPONSE=false                          # Response output flag
-LINE_SEPARATOR=$'|\n'                   # Line separator for questions
+LINE_SEPARATOR=$';\n'                   # Line separator for questions
 NUM_SEPARATOR=$'|'                      # Number separator for questions
-ANSWER_SEPARATOR=$'/'                   # Answer separator
+ANSWER_SEPARATOR=$'!'                   # Answer separator
 
 # State variables
 USERNAME=""                             # Username of the client

@@ -1,0 +1,4 @@
+1;What is Bash?;one-choice;1. A shell!2. A programming language!3. Both!;3
+2;What does `ls` command do?;one-choice;1. List files!2. List directories!3. Both!;3
+3;What does `ps` command do?;text;(two words: list ...);list processes/report processes/current processes/show processes/
+4;Which commands are intended for output?;multiple-choice;1. echo!2. printf!3. cp!4. mkdir!;1,2
