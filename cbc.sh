@@ -232,7 +232,7 @@ function display_remaining_time() {
 
 # Function: Get remaining time
 function get_remaining_time() {
-    send_command "l"
+    send_command "t"
     local time_info=$(get_response)
     echo "$time_info"
 }

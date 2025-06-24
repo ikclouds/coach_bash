@@ -1,3 +1,61 @@
-1;What is Bash?;one-choice;1. A shell!2. A programming language!3. Both!;3
-2;What does `ls` command do?;one-choice;1. List files!2. List directories!3. Both!;3
-3;Which commands are intended for output?;multiple-choice;1. echo!2. printf!3. cp!4. mkdir!;1,2
+1;What command is used to check the OS version on Ubuntu?;one-choice; 1. cat /etc/os-release!2. systeminfo | findstr "Version"!3. winget --version!4. git --version!;1
+2;Which of the following are valid methods to install Python on Ubuntu?;multiple-choice;1. From repository using apt!2. From source code compilation!3. From PPA using deadsnakes!4. Using Windows Package Manager!5. Using Chocolatey!;1,2,3
+3;What is the recommended way to create a Python virtual environment using Python 3.13?;one-choice;1. virtualenv env-01!2. python3.13 -m venv env-01!3. conda create -n env-01!4. pip install virtualenv!;2
+4;Which command activates a Python virtual environment in Linux?;one-choice;1. activate env-01!2. source env-01/bin/activate!3. . ./env-01/bin/activate!4. Both 2 and 3!;4
+5;What are the essential dependencies needed to compile Python from source on Ubuntu?;multiple-choice;1. build-essential!2. libssl-dev!3. libffi-dev!4. microsoft-edge!5. libreadline-dev!;1,2,3,5
+6;Which VS Code extensions are recommended for Python development?;multiple-choice;1. ms-python.python!2. ms-python.vscode-pylance!3. ms-python.debugpy!4. ms-vscode.powershell!5. donjayamanne.python-extension-pack!;1,2,3,5
+7;What is the purpose of the deadsnakes PPA?;one-choice;1. To install JavaScript packages!2. To install newer Python versions on Ubuntu!3. To manage Git repositories!4. To configure SSH keys!;2
+8;Which command is used to upgrade pip to the latest version?;one-choice;1. pip upgrade!2. python3 -m pip install --upgrade pip!3. apt install pip!4. pip install pip!;2
+9;What does the apt_pkg module provide in Ubuntu?;one-choice;1. Python web framework!2. Python 3 bindings for APT package management!3. Database connectivity!4. GUI development tools!;2
+10;Which of the following are valid Git configuration scopes?;multiple-choice;1. system!2. global!3. local!4. worktree!5. remote!;1,2,3,4
+11;What is the recommended SSH key type for GitHub authentication?;one-choice;1. RSA 2048-bit!2. DSA!3. ed25519!4. ECDSA!;3
+12;Which command generates an ed25519 SSH key?;one-choice;1. ssh-keygen -t rsa -b 4096!2. ssh-keygen -t ed25519 -C "email@example.com"!3. ssh-add ~/.ssh/id_rsa!4. ssh-agent -s!;2
+13;What are the main components of Ubuntu's package management that use Python 3?;multiple-choice;1. add-apt-repository!2. apt command!3. Package management tools!4. System utilities!5. Windows Terminal!;1,2,3
+14;Which command tests SSH connection to GitHub?;one-choice;1. ssh github.com!2. ssh -T git@github.com!3. git test ssh!4. ssh-add -t!;2
+15;What is the purpose of the SSH agent?;one-choice;1. To manage Git repositories!2. To store and manage SSH private keys in memory!3. To compile Python code!4. To install packages!;2
+16;Which of the following are valid ways to install Git on Ubuntu?;multiple-choice;1. sudo apt install git!2. From git-core PPA!3. Using Chocolatey!4. From source compilation!5. Using snap!;1,2,4
+17;What is the default branch name recommended in modern Git configuration?;one-choice;1. master!2. main!3. develop!4. trunk!;2
+18;Which command shows the origin and scope of Git configuration settings?;one-choice;1. git config --list!2. git config --show-origin!3. git config --list --show-origin --show-scope!4. git config --global --list!;3
+19;What does the -m flag do in Python commands like 'python3 -m pip'?;one-choice;1. Shows manual pages!2. Runs library module as a script!3. Creates a virtual environment!4. Installs packages!;2
+20;Which Python versions are mentioned as installable through the deadsnakes PPA?;multiple-choice;1. Python 3.10!2. Python 3.12!3. Python 3.13!4. Python 2.7!5. Python 3.11!;1,2,3,5
+21;What is the purpose of the --enable-optimizations flag during Python compilation?;one-choice;1. Enables debugging features!2. Optimizes Python performance during build!3. Enables virtual environment support!4. Adds SSL support!;2
+22;Which directories are created when you run 'python3.13 -m venv env-01'?;multiple-choice;1. env-01/bin!2. env-01/lib!3. env-01/include!4. env-01/share!5. env-01/src!;1,2,3
+23;What is the difference between distribution packages and import packages in Python?;one-choice;1. No difference, they are the same!2. Distribution packages are installed via pip, import packages are Python modules!3. Distribution packages are for Windows only!4. Import packages are deprecated!;2
+24;Which command reinstalls Python APT bindings if they are corrupted?;one-choice;1. sudo apt install python3-apt!2. sudo apt install --reinstall python3-apt!3. pip install apt-pkg!4. python3 -m apt install!;2
+25;What are useful Git aliases mentioned in the configuration?;multiple-choice;1. st for status!2. co for checkout!3. br for branch!4. ci for commit!5. rm for remove!;1,2,3,4
+26;Which VS Code extensions are recommended for remote development?;multiple-choice;1. ms-vscode-remote.remote-ssh!2. ms-vscode-remote.remote-wsl!3. ms-vscode-remote.remote-containers!4. ms-vscode.remote-explorer!5. ms-python.python!;1,2,3,4
+27;What is the purpose of the software-properties-common package?;one-choice;1. Common software development tools!2. Provides add-apt-repository command!3. Python development libraries!4. Git configuration utilities!;2
+28;Which command shows all available SSH keys in the SSH agent?;one-choice;1. ssh-add -l!2. ssh-add -L!3. ssh-agent -l!4. ssh-keys --list!;1
+29;What is the recommended approach for line ending handling in Git on Linux?;one-choice;1. core.autocrlf true!2. core.autocrlf input!3. core.autocrlf false!4. No configuration needed!;2
+30;Which Python packages are mentioned for installation in virtual environments?;multiple-choice;1. boto3!2. pip!3. setuptools!4. wheel!5. django!;1,2,3,4
+31;What does the tree command do in Linux?;one-choice;1. Shows Git branch structure!2. Displays directory structure in tree format!3. Lists Python packages!4. Shows process hierarchy!;2
+32;Which Windows tools are mentioned for package management?;multiple-choice;1. WinGet!2. Chocolatey!3. PowerShell!4. Windows Terminal!5. APT!;1,2
+33;What is the purpose of WSL (Windows Subsystem for Linux)?;one-choice;1. Windows security layer!2. Runs Linux environment on Windows!3. Web server for Linux!4. Wireless network management!;2
+34;Which command shows the Git commit history in one line format?;one-choice;1. git log!2. git log --oneline!3. git history!4. git show --oneline!;2
+35;What are the recommended Python development practices mentioned?;multiple-choice;1. Use virtual environments!2. Upgrade pip regularly!3. Install from trusted sources!4. Use latest Python versions!5. Avoid package managers!;1,2,3,4
+36;Which SSH key management commands are covered?;multiple-choice;1. ssh-add for adding keys!2. ssh-add -l for listing keys!3. ssh-add -D for removing all keys!4. ssh-add -x for locking keys!5. ssh-add -k for generating keys!;1,2,3,4
+37;What is the purpose of the ~/.ssh/config file?;one-choice;1. Stores SSH private keys!2. Configures SSH client settings for different hosts!3. Lists authorized users!4. Contains SSH agent settings!;2
+38;Which Git commands are recommended for beginners to learn first?;multiple-choice;1. add!2. commit!3. push!4. pull!5. status!;1,2,3,4,5
+39;What does 'git init' command do?;one-choice;1. Initializes SSH keys!2. Initializes a new Git repository!3. Installs Git!4. Initializes Python environment!;2
+40;Which Python version management approaches are mentioned?;multiple-choice;1. Using update-alternatives!2. Using virtual environments!3. Using conda!4. Using pyenv!5. Direct installation!;1,2,5
+41;What is the purpose of the libmpdec-dev package in Python compilation?;one-choice;1. Multimedia processing!2. Decimal arithmetic support!3. Network protocols!4. Database connectivity!;2
+42;Which VS Code settings are mentioned for Python development?;multiple-choice;1. Settings Sync!2. Extension installation!3. Editor configuration!4. Terminal integration!5. Database connections!;1,2,3,4
+43;What does the 'deactivate' command do in Python virtual environments?;one-choice;1. Deletes the virtual environment!2. Exits the virtual environment!3. Pauses the virtual environment!4. Reinstalls packages!;2
+44;Which are valid methods to copy SSH public key to clipboard?;multiple-choice;1. xclip -selection clipboard < ~/.ssh/id_rsa.pub!2. pbcopy < ~/.ssh/id_ed25519.pub (macOS)!3. clip < ~/.ssh/id_ed25519.pub (Windows)!4. cat ~/.ssh/id_rsa.pub!5. ssh-copy-id!;1,2,3,4
+45;What is the recommended minimum Windows version for WSL?;one-choice;1. Windows 10 version 1903!2. Windows 10 version 2004 (Build 19041)!3. Windows 11 only!4. Any Windows 10 version!;2
+46;Which Git troubleshooting commands are mentioned?;multiple-choice;1. git config --list!2. ssh -T git@github.com!3. ssh-add -l!4. git reset --soft HEAD~1!5. git push --force!;1,2,3,4,5
+47;What does 'pip list' command show?;one-choice;1. Available packages to install!2. Currently installed packages!3. Package installation history!4. Package dependencies!;2
+48;Which Python installation locations are mentioned?;multiple-choice;1. /usr/bin/python3.13!2. /usr/local/bin/python3.13!3. /usr/local/lib/python3.13!4. C:\Python313!5. ~/.local/bin/python3!;1,2,3
+49;What is the purpose of the eval "$(ssh-agent -s)" command?;one-choice;1. Evaluates SSH key strength!2. Starts SSH agent and sets environment variables!3. Evaluates SSH configuration!4. Tests SSH connection!;2
+50;Which package managers are mentioned for different operating systems?;multiple-choice;1. APT (Ubuntu)!2. Chocolatey (Windows)!3. WinGet (Windows)!4. Homebrew (macOS)!5. Snap (Linux)!;1,2,3,5
+51;What does the --wait flag do in VS Code Git configuration?;one-choice;1. Waits for user input!2. Makes Git wait for VS Code to close before continuing!3. Waits for network connection!4. Waits for file synchronization!;2
+52;Which SSH environment variables are mentioned?;multiple-choice;1. SSH_AUTH_SOCK!2. SSH_AGENT_PID!3. PYTHONPATH!4. PATH!5. HOME!;1,2
+53;What is the purpose of the IdentitiesOnly setting in SSH config?;one-choice;1. Allows only one SSH key!2. Uses only the specified identity file!3. Identifies the user uniquely!4. Enables identity verification!;2
+54;Which Git workflow steps are outlined for beginners?;multiple-choice;1. Clone repository!2. Create branch!3. Make commits!4. Push changes!5. Create pull request!;1,2,3,4,5
+55;What does 'git remote -v' command show?;one-choice;1. Git version!2. Remote repository URLs with fetch/push info!3. Local branches!4. Remote branches!;2
+56;Which Python compilation flags are mentioned for optimization?;multiple-choice;1. --enable-optimizations!2. --with-lto!3. --enable-debug!4. --disable-ipv6!5. --enable-shared!;1,2
+57;What is the purpose of the chmod 600 ~/.ssh/config command?;one-choice;1. Makes the file executable!2. Sets read-write permissions for owner only!3. Makes the file readable by all!4. Removes all permissions!;2
+58;Which development environment verification steps are mentioned?;multiple-choice;1. Check Git installation and version!2. Verify SSH connection to GitHub!3. Test virtual environment creation!4. Confirm VS Code extensions!5. Validate Python installation!;1,2,3,4,5
+59;What does the git commit --amend --reset-author command do?;one-choice;1. Adds new files to commit!2. Changes the commit message!3. Updates the author information of the last commit!4. Resets the commit history!;3
+60;Which commands can be used to make bash scripts executable?;multiple-choice;1. chmod a+x *.sh!2. chmod 777 *.sh!3. chmod +x *.sh!4. chmod 755 *.sh!5. chmod -x *.sh!;1,2,3,4
+61;Next steps: Which are the main learning objectives for Module 1.1 mentioned in the prompt?;multiple-choice;1. Understanding Python interpreter and REPL!2. Writing and running first Python script!3. Python syntax basics and code structure!4. Comments and documentation practices!5. Advanced web development!;1,2,3,4

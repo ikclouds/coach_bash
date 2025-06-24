@@ -296,6 +296,7 @@ function process_answer() {
         # Normalize answer for comparison, no space is allowed
         user_answer=$(echo "$user_answer" | sed 's/ //g' | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
         correct=$(echo "$correct" | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
+        log_message $DEBUG "DEBUG" "Correct answers: ${correct}"
          # Check if the user answer matches the correct answer
         if [[ "${user_answer,,}" == "${correct,,}" ]]; then
             ANSWERED_QUESTIONS["$question_number"]="1"
@@ -308,6 +309,7 @@ function process_answer() {
         user_answer=$(echo "$user_answer" | sed 's/  / /g')
         # Check if the user answer matches any of the correct answers
         IFS="$ANSWER_SEPARATOR" read -ra correct_answers <<< "${correct}"
+        log_message $DEBUG "DEBUG" "Correct answers: ${correct_answers[*]}"
         for correct in "${correct_answers[@]}"; do
             if [[ "${user_answer,,}" == "${correct,,}" ]]; then
                 ANSWERED_QUESTIONS["$question_number"]="1"
@@ -439,6 +441,7 @@ function calculate_final_result() {
         echo "Username: $USERNAME"
         echo "Course: $COURSE_NAME"
         echo "Difficulty: $DIFFICULTY_NAME"
+        echo "Coach mode: $RESPONSE"
         echo "Test Start Time: $TEST_START_TIME"
         echo "Total Questions: $total_questions"
         echo "Correct Answers: $correct_answers"
