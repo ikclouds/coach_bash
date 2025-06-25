@@ -321,7 +321,7 @@ function main() {
     local user_input
     while true; do
         ui_print "---\nIteration: $((iteration++))"
-        read -p "Enter command: " user_input
+        read -p "Enter command (h - help): " user_input
         process_command "$user_input"
     done
 }
