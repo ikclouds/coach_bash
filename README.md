@@ -220,6 +220,9 @@ Run the server with the required options:
 
 # Start the Server, 10 min limitation
 ./cbs.sh -r -l 10 > /dev/null &
+
+# Start the Server for the specified user without output
+./cbs.sh -u user -r > /dev/null 2>&1 &
 ```
 
 - Start the Client

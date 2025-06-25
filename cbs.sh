@@ -35,6 +35,7 @@ RESPONSE=false                          # Response output flag
 LINE_SEPARATOR=$';\n'                   # Line separator for questions
 COLUMN_SEPARATOR=$';'                   # Column separator for questions
 ANSWER_SEPARATOR=$'!'                   # Answer separator
+SEND_DELAY=0                            # Delay between sending answers to the client
 
 # State variables
 USERNAME=""                             # Username of the client
