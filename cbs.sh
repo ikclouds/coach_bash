@@ -33,7 +33,7 @@ QUESTION_FILE="$COURSES_FOLDER/course.txt"      # Default question file for the 
 DESCRIPTION_FILE="$COURSES_FOLDER/course.des"   # Default description file for the course
 RESPONSE=false                          # Response output flag
 LINE_SEPARATOR=$';\n'                   # Line separator for questions
-NUM_SEPARATOR=$'|'                      # Number separator for questions
+COLUMN_SEPARATOR=$';'                   # Column separator for questions
 ANSWER_SEPARATOR=$'!'                   # Answer separator
 
 # State variables
@@ -103,7 +103,6 @@ function parse_arguments() {
 
     log_message $EMERG "INFO" "Logging level: $LOGGING_LEVEL"
     log_message $EMERG "INFO" "Username: $USERNAME"
-    log_message $EMERG "INFO" "Topic: $TOPIC"
     info_print "Response: $RESPONSE"
     info_print "Logging level: $LOGGING_LEVEL"
     info_print "Test duration: $TEST_DURATION minutes"
@@ -161,7 +160,7 @@ function send_answer() {
     validate_pipe "$PIPE_CLIENT" "$APP_NAME"
 
     if [[ -n "$answer" ]]; then
-        log_message $DEBUG "DEBUG" "$answer"
+        debug_print "$answer"
         ui_print "$answer" | tee "$PIPE_CLIENT"
     fi
 }
@@ -169,8 +168,12 @@ function send_answer() {
 # Function: Send a question to the client
 function send_question() {
     local question_number="$1"
-    local question_line="${QUESTIONS[$((question_number - 1))]}"
-
+    local question_line=""
+    
+    if [[ "$question_number" != "0" ]]; then
+        question_line="${QUESTIONS[$((question_number - 1))]}"
+    fi
+    
     ui_print "Send question number $question_number command received. Sending question..."
     if [[ -z "$question_line" ]]; then
         send_answer "> Error: Question $question_number not found."
@@ -178,9 +181,9 @@ function send_question() {
       info_print "Sending question $question_number to client..."
       IFS="$LINE_SEPARATOR" read -t 1 -r number question type options correct <<< "$question_line"
       if [[ "$type" == "text" ]]; then
-        send_answer "> Question $question_number| $question $options ($type)"
+        send_answer "> Question $question_number: $question $options ($type)"
       else
-        send_answer "> Question $question_number| $question ($type)"
+        send_answer "> Question $question_number: $question ($type)"
       fi
       if [[ "$type" == "multiple-choice" || "$type" == "one-choice" ]]; then
           echo "$options" | while read -d "$ANSWER_SEPARATOR" -r option; do
@@ -198,7 +201,7 @@ function list_questions() {
     for i in "${!QUESTIONS[@]}"; do
         question_line="${QUESTIONS[$i]}"
         IFS="$LINE_SEPARATOR" read -r number question _ <<< "${QUESTIONS[$i]}"
-        send_answer "> Question $((i + 1))| $question"
+        send_answer "> Question $((i + 1)): $question"
         sleep $SEND_DELAY
     done
     send_stop "$PIPE_CLIENT"
@@ -231,7 +234,7 @@ function display_progress() {
 # Function: List all questions
 function send_session_info() {
     ui_print "Get session information. Sending session info..."
-    echo -e "Username: ${USERNAME}\nCourse: ${COURSE_NAME} (Difficulty: ${DIFFICULTY_NAME})" | \
+    echo -e "Username: ${USERNAME}\nCourse ($TOPIC): ${COURSE_NAME}\nDifficulty: ${DIFFICULTY_NAME}" | \
     while read -r session; do
         send_answer "$session"
         sleep $SEND_DELAY
@@ -264,7 +267,7 @@ function start_test_session() {
         warning_print "Test session already started at: $TEST_START_TIME"
     fi
 
-    echo "$TEST_START_TIME" > "$PIPE_CLIENT"
+    send_answer "$TEST_START_TIME"
     send_stop "$PIPE_CLIENT"
 }
 
@@ -279,7 +282,7 @@ function process_answer() {
 
     # Check if the question has already been answered
     if [[ " ${!ANSWERED_QUESTIONS[@]} " == *" $question_number "* ]]; then
-        ui_print "Question $question_number has already been answered. Overwriting previous answer."
+        info_print "Question $question_number has already been answered. Overwriting previous answer."
     else
         ANSWERED_QUESTIONS["$question_number"]="0"  # Initialize as incorrect
     fi
@@ -296,7 +299,7 @@ function process_answer() {
         # Normalize answer for comparison, no space is allowed
         user_answer=$(echo "$user_answer" | sed 's/ //g' | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
         correct=$(echo "$correct" | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
-        log_message $DEBUG "DEBUG" "Correct answers: ${correct}"
+        debug_print "Correct answers: ${correct}"
          # Check if the user answer matches the correct answer
         if [[ "${user_answer,,}" == "${correct,,}" ]]; then
             ANSWERED_QUESTIONS["$question_number"]="1"
@@ -309,7 +312,7 @@ function process_answer() {
         user_answer=$(echo "$user_answer" | sed 's/  / /g')
         # Check if the user answer matches any of the correct answers
         IFS="$ANSWER_SEPARATOR" read -ra correct_answers <<< "${correct}"
-        log_message $DEBUG "DEBUG" "Correct answers: ${correct_answers[*]}"
+        debug_print "Correct answers: ${correct_answers[*]}"
         for correct in "${correct_answers[@]}"; do
             if [[ "${user_answer,,}" == "${correct,,}" ]]; then
                 ANSWERED_QUESTIONS["$question_number"]="1"
@@ -323,14 +326,14 @@ function process_answer() {
         response="Invalid question type"
     fi
 
-    # Debugging
+    # Log the answer
     info_print "Normalized user answer: ${user_answer,,}"
     info_print "Normalized correct answer: ${correct,,}"
     info_print "$(declare -p ANSWERED_QUESTIONS | sed 's/^declare -a //')"
 
     # Send response to the client
     local message="Server response: $response"
-    log_message $INFO "INFO" "$message"
+    info_print "$message"
     ui_print "$message"
     $RESPONSE && echo "Server response: $response" > "$PIPE_CLIENT"
     send_stop "$PIPE_CLIENT"
@@ -383,13 +386,15 @@ function handle_time_command() {
     ui_print "Time command received. Sending remaining time..."
     local remaining_time=$(calculate_remaining_time)
 
-    if [[ "$remaining_time" -lt 0 ]]; then
-        echo "Test started at: $TEST_START_TIME, $(calculate_time_taken) minute(s) ago (No time limit)" > "$PIPE_CLIENT"
+    if [[ -z "$TEST_START_TIME" ]]; then
+        send_answer "Quiz hasn't started yet, run 's' command to start the session."
     else
-        [[ -z "$TEST_START_TIME" ]] \
-            && send_answer "Test started at: hasn't started" \
-            || send_answer "Test started at: $TEST_START_TIME, $(calculate_time_taken) minute(s) ago"
-        send_answer "Remaining time: $remaining_time minute(s)"
+        if [[ "$remaining_time" -lt 0 ]]; then
+            send_answer "Quiz started at: $TEST_START_TIME, $(calculate_time_taken) minute(s) ago (No time limit)."
+        else
+            send_answer "Quiz started at: $TEST_START_TIME, $(calculate_time_taken) minute(s) ago."
+            send_answer "Remaining time: $remaining_time minute(s)"
+        fi
     fi
     send_stop "$PIPE_CLIENT"
 }
@@ -455,7 +460,7 @@ function calculate_final_result() {
             if [[ -n "${ANSWERED_QUESTIONS[$question_number]}" ]]; then
                 status=$([[ "${ANSWERED_QUESTIONS[$question_number]}" == "1" ]] && echo "Correct" || echo "Incorrect")
             fi
-            local question="$(echo ${QUESTIONS[$i]} | cut -d'|' -f2)"
+            local question="$(echo ${QUESTIONS[$i]} | cut -d"$COLUMN_SEPARATOR" -f2)"
             echo "Question $question_number: $status: $question"
         done
     } > "$RESULTS_FOLDER/$result_file"

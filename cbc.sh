@@ -32,6 +32,7 @@ EXTENDED=false                          # Extended information flag
 
 # State variables
 USERNAME=""                             # Username of the client
+TOPIC=""                                # Topic (course code)
 SESSION=""                              # Session info from the server
 TEST_START_TIME=""                      # Test start date-time
 LAST_QUESTION=""                        # Last question number
@@ -57,7 +58,7 @@ function show_help() {
 # Function: Display commands
 function show_commands() {
     ui_print "Commands:"
-    ui_print "  [number]        Request a specific question by number 0-99"
+    ui_print "  [number]        Request a specific question by number 1-99"
     ui_print "  a               Submit an answer"
     ui_print "  f               Finish the question-answer session"
     ui_print "  i               Show course information"
@@ -101,8 +102,7 @@ function parse_arguments() {
     fi
 
     log_message $EMERG "INFO" "Logging level: $LOGGING_LEVEL"
-    log_message $EMERG "INFO" "Username: $USERNAME"
-    log_message $EMERG "INFO" "Topic: $TOPIC"
+    log_message $EMERG "INFO" "Username: $USERNAME"    
 }
 
 # Function: Send a command to the server
@@ -136,7 +136,7 @@ function get_response() {
             warning_print "$response"
         else
             ui_print "$response"
-            [[ "$LAST_COMMAND" != "f" ]] && log_message $DEBUG "DEBUG" "$response"
+            [[ "$LAST_COMMAND" != "f" ]] && log_message $DEBUG - "$response"
         fi
     done
 }
@@ -150,7 +150,7 @@ function start_test_session() {
         
         local message="Test session started at: $TEST_START_TIME"
         ui_print "$message"
-        log_message $INFO "INFO" "$message"
+        log_message $INFO - "$message"
     else
         warning_print "Test session already started..."
     fi
@@ -187,12 +187,12 @@ function submit_answer() {
     fi
     message="Last question: $LAST_QUESTION"
     ui_print "$message"
-    log_message $INFO "INFO" "$message"
+    log_message $INFO - "$message"
     ui_print "Examples of answers: 1|3 (one-choice); 2|1,3 (multiple-choice); 3|my answer (text)."
     ui_print "Enter your answer (question|answer):" | tr '\n' ' '
     read -e -i "${LAST_QUESTION}|" -r user_answer
     send_command "a|$user_answer"
-    log_message $INFO "INFO" "Answer: $user_answer"
+    log_message $INFO - "Answer: $user_answer"
     local response=$(get_response)
     [[ "$response" =~ "Server response:" ]] && RESPONSE=true
     if $RESPONSE; then
@@ -269,6 +269,7 @@ function init_application() {
 
     parse_arguments "$@"
     log_message $EMERG "INFO" "$message"
+    log_message $EMERG "INFO" "Topic: $TOPIC"
 
     # Create the named pipe for server-client communication
     local pipe_client="/$PIPE_FOLDER/${USERNAME}_${TOPIC}_cbc_pipe"

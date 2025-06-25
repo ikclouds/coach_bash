@@ -25,10 +25,18 @@ CB_GROUP="cb"                       # Group name for Coach Ba
 EMERG=0                             # Mandatory logging
 CRIT=2                              # Log all critical messages
 ERR=3                               # Log all error messages 
-WARNING=4                           # Log all warning messages  
+WARN=4                              # Log all warning messages  
 INFO=6                              # Log all informational messages
 DEBUG=7                             # Log all debug-level messages
 LOGGING_LEVEL=$EMERG                # Default logging level
+declare -A LOG_LEVELS=(
+    [$EMERG]="EMERG"
+    [$CRIT]="CRIT"
+    [$ERR]="ERR"
+    [$WARN]="WARN"
+    [$INFO]="INFO"
+    [$DEBUG]="DEBUG"
+)
 
 # Error codes
 ERR_NO=0                            # No error
@@ -41,7 +49,7 @@ ERR_UNKNOWN=6                       # Unknown error
 # Function: Log a message
 function log_message() {
     local required_logging="$1"
-    local log_level="$2"
+    local log_level="${LOG_LEVELS[$required_logging]}"
     local message="$3"
     local username="${USERNAME:=${CB_USERNAME}}"
     local topic="${TOPIC:=${CB_TOPIC}}"
@@ -58,6 +66,7 @@ function log_message() {
 
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     if [[ "$EMERG" -eq "$required_logging" ]]; then
+        [[ "$2" == "-" ]] && log_level="EMERG" || log_level="$2"
         echo "$timestamp | $log_level | $username | $topic | $message" >> "$log_file"
     elif [[ "$LOGGING_LEVEL" -ge "$required_logging" ]]; then
         echo "$timestamp | $log_level | $username | $topic | $message" >> "$log_file"
@@ -74,7 +83,7 @@ function warning_print() {
     local message="$1"
 
     echo -e "\e[33m${message}\e[0m"  # Yellow
-    log_message $WARNING "WARN" "$message"
+    log_message $WARN - "$message"
 }
 
 # Function: Print error output
@@ -83,7 +92,7 @@ function error_print() {
 
     echo -e "\e[31m${message}\e[0m"  # Red
     if ! [[ -z "$username" || -z "$topic" ]]; then
-        log_message $ERR "ERR" "$1"
+        log_message $ERR - "$1"
     fi
 }
 
@@ -92,17 +101,25 @@ function critical_print() {
     local message="$1"
 
     echo -e "\e[41m${message}\e[0m"  # Red background
-    log_message $CRIT "CRIT" "$message"
+    log_message $CRIT - "$message"
+}
+
+# Function: Print emergency error output
+function emergency_print() {
+    local message="$1"
+
+    echo -e "\e[41m${message}\e[0m"  # Red background
+    log_message $EMERG - "$message"
 }
 
 # Function: Print verbose output
 function info_print() {
-    log_message $INFO "INFO" "$1"
+    log_message $INFO - "$1"
 }
 
 # Function: Print verbose output
 function debug_print() {
-    log_message $DEBUG "DEBUG" "$1"
+    log_message $DEBUG - "$1"
 }
 
 # Function: Exit the program
