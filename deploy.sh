@@ -20,7 +20,7 @@
 #   echo $PATH | grep -wo "/home/user/bin"
 #   cbc.sh
 
-declare -a cb_users=(ya yk)
+declare -a cb_users=(cb1 cb2)
 declare -a cb_package=('cbc.sh' 'cbl.sh' '.env')
 declare -a linux_packages=('pwgen' 'acl')
 declare CB_GROUP="cb"

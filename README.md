@@ -10,6 +10,31 @@ The **Coach Ba** software is a Bash-based testing environment that allows users 
 
 The project is designed to be modular, secure, and extensible, with all questions, answers, and user results stored in separate files.
 
+## TOC
+
+- [Coach Ba](#coach-ba)
+  - [Overview](#overview)
+  - [TOC](#toc)
+  - [Features](#features)
+    - [General](#general)
+    - [Client (`cbc.sh`)](#client-cbcsh)
+    - [Server (`cbs.sh`)](#server-cbssh)
+  - [Installation](#installation)
+    - [Manual Installation](#manual-installation)
+    - [Automated Installation with deploy.sh](#automated-installation-with-deploysh)
+      - [Prerequisites](#prerequisites)
+      - [Running the Deployment](#running-the-deployment)
+      - [What deploy.sh Does](#what-deploysh-does)
+      - [Post-Deployment](#post-deployment)
+      - [Configuration Files](#configuration-files)
+  - [Usage](#usage)
+    - [File Structure](#file-structure)
+    - [Logging](#logging)
+  - [Security](#security)
+  - [License](#license)
+  - [Authors](#authors)
+  - [Acknowledgments](#acknowledgments)
+
 ## Features
 
 ### General
@@ -48,6 +73,8 @@ The project is designed to be modular, secure, and extensible, with all question
 
 ## Installation
 
+### Manual Installation
+
 1. Clone the repository:
 
     ```bash
@@ -56,11 +83,13 @@ The project is designed to be modular, secure, and extensible, with all question
     ```
 
 2. Set up the environment:
-   - Create a .env file to define default values for CB_USERNAME and CB_TOPIC:
+   - Create a .env file to define default values for CB_USERNAME and CB_TOPIC
+   - The CB_PW value is populated after running the deploy.sh
 
    ```bash
    export CB_USERNAME=user
    export CB_TOPIC=PLLB10001001
+   export CB_PW=password
    ```
 
 3. Ensure the required files are available:
@@ -73,7 +102,90 @@ The project is designed to be modular, secure, and extensible, with all question
    chmod +x cbc.sh cbs.sh
    ```
 
-5. Install Linux and run Bash:
+### Automated Installation with deploy.sh
+
+The `deploy.sh` script provides automated deployment of the Coach Ba software with proper user management, permissions, and file setup.
+
+#### Prerequisites
+
+Before running the deployment script, ensure the following packages are installed:
+
+```bash
+sudo apt install acl pwgen
+```
+
+#### Running the Deployment
+
+Execute the deployment script with root privileges:
+
+```bash
+sudo -u root ./deploy.sh
+```
+
+#### What deploy.sh Does
+
+The deployment script performs the following operations:
+
+1. **Package Management**:
+   - Automatically checks and installs required Linux packages (`pwgen`, `acl`)
+   - Ensures all dependencies are met before proceeding
+
+2. **User and Group Management**:
+   - Creates a dedicated group `cb` for Coach Ba users
+   - Creates default users (`cb1`, `cb2`) if they don't exist
+   - Generates secure passwords using `pwgen` (12 characters, alphanumeric)
+   - Adds users to the `cb` group for proper access control
+
+3. **Directory Structure**:
+   - Creates `/home/[user]/bin/` directories for each user
+   - Creates `/opt/cb/` shared directory with proper group permissions
+   - Sets up ACL (Access Control Lists) for enhanced security
+   - Applies setgid bit for group inheritance
+
+4. **File Deployment**:
+   - Copies core Coach Ba files (`cbc.sh`, `cbl.sh`, `.env`) to user directories
+   - Creates backup directories with timestamps before overwriting existing files
+   - Sets appropriate file permissions (755 for scripts, 644 for configuration)
+   - Automatically configures `.env` files with user-specific settings
+
+5. **Security Configuration**:
+   - Sets proper file ownership (user:cb group)
+   - Applies restrictive permissions (770 for shared directories, 755 for user directories)
+   - Configures default ACL permissions for new files
+   - Stores user passwords securely and cleans up temporary files
+
+#### Post-Deployment
+
+After running the deployment script:
+
+1. Switch to the deployed user:
+
+   ```bash
+   wsl -u [username]
+   # or
+   su - [username]
+   ```
+
+2. Verify the PATH includes the user's bin directory:
+
+   ```bash
+   echo $PATH | grep -wo "/home/[username]/bin"
+   ```
+
+3. Test the installation:
+
+   ```bash
+   cbc.sh
+   ```
+
+#### Configuration Files
+
+- **Users**: Default users `cb1` and `cb2` (configurable via `cb_users` array)
+- **Packages**: Core files `cbc.sh`, `cbl.sh`, `.env` (configurable via `cb_package` array)
+- **Group**: All users are added to the `cb` group for shared access
+- **Permissions**: Follows the principle of least privilege with group-based access control
+
+1. Install Linux and run Bash:
    - Windows 10+
 
     ```console
@@ -107,7 +219,7 @@ Run the server with the required options:
 ./cbs.sh -r > /dev/null &
 
 # Start the Server, 10 min limitation
-./cbs.sh -r -t 10 > /dev/null &
+./cbs.sh -r -l 10 > /dev/null &
 ```
 
 - Start the Client
@@ -140,6 +252,7 @@ cbc.sh
 - `cbc.sh`: Client script.
 - `cbs.sh`: Server script.
 - `cbl.sh`: Shared library for common functions.
+- `deploy.sh`: This script provides automated deployment of the Client script.
 - `courses/course.txt`: Contains questions and answers.
 - `courses/course.des`: Contains course descriptions.
 - `logs/`: Directory for log files.
