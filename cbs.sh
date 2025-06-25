@@ -446,6 +446,7 @@ function calculate_final_result() {
     {
         echo "Username: $USERNAME"
         echo "Course: $COURSE_NAME"
+        echo "Course ID: $TOPIC"
         echo "Difficulty: $DIFFICULTY_NAME"
         echo "Coach mode: $RESPONSE"
         echo "Test Start Time: $TEST_START_TIME"
