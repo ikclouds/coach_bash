@@ -19,6 +19,9 @@ The project is designed to be modular, secure, and extensible, with all question
     - [General](#general)
     - [Client (`cbc.sh`)](#client-cbcsh)
     - [Server (`cbs.sh`)](#server-cbssh)
+  - [Command Line Interface](#command-line-interface)
+    - [Server CLI (`cbs.sh`)](#server-cli-cbssh)
+    - [Client CLI (`cbc.sh`)](#client-cli-cbcsh)
   - [Installation](#installation)
     - [Manual Installation](#manual-installation)
     - [Automated Installation with deploy.sh](#automated-installation-with-deploysh)
@@ -49,18 +52,9 @@ The project is designed to be modular, secure, and extensible, with all question
 
 ### Client (`cbc.sh`)
 
-- Commands:
-  - `s`: Start the test session.
-  - `t`: Display the remaining time or test start time.
-  - `l`: List all questions.
-  - `p`: Display progress (answered and marked questions).
-  - `number`: Request a specific question by its number.
-  - `a`: Submit an answer.
-  - `r`: Mark a question for answering later.
-  - `f`: Finish the session and calculate results.
-  - `q`: Quit the session.
-- Displays test start time and progress.
 - Handles user input and sends commands to the server.
+- Receive and display answers from the server.
+- Displays course information, test start time and progress.
 
 ### Server (`cbs.sh`)
 
@@ -70,6 +64,92 @@ The project is designed to be modular, secure, and extensible, with all question
 - Stores user results in a file with the format: `user_topic_yyyymmdd_hhmm`.
 - Provides immediate feedback on answers or final results at the end of the session.
 - Handles unexpected scenarios, such as missing files or crashes.
+
+## Command Line Interface
+
+### Server CLI (`cbs.sh`)
+
+The server script supports the following command-line options:
+
+```bash
+./cbs.sh [OPTIONS]
+```
+
+**Options:**
+
+- `-u <username>`: Specify the username for the test session (overrides CB_USERNAME environment variable)
+- `-t <topic>`: Specify the topic/course code (overrides CB_TOPIC environment variable)
+- `-l <minutes>`: Set time limit for the test session in minutes
+- `-r`: Run in coach mode with no time limitation
+- `-v`: Enable verbose logging (CRIT level)
+- `-vv`: Enable more verbose logging (ERR level)
+- `-vvv`: Enable detailed logging (WARNING level)
+- `-vvvv`: Enable info logging (INFO level)
+- `-vvvvv`: Enable debug logging (DEBUG level)
+- `-h`: Display help information
+
+**Examples:**
+
+```bash
+# Start server in coach mode with no time limit
+./cbs.sh -r
+
+# Start server for specific user with 30-minute time limit
+./cbs.sh -u student1 -l 30
+
+# Start server with verbose logging
+./cbs.sh -u student1 -r -vvv
+
+# Start server with specific topic and time limit
+./cbs.sh -u student1 -t PLLB10001001 -l 45
+```
+
+### Client CLI (`cbc.sh`)
+
+The client script supports the following command-line options:
+
+```bash
+./cbc.sh [OPTIONS]
+```
+
+**Options:**
+
+- `-u <username>`: Specify the username for connecting to the server (overrides CB_USERNAME environment variable)
+- `-t <topic>`: Specify the topic/course code (overrides CB_TOPIC environment variable)
+- `-v`: Enable verbose logging (CRIT level)
+- `-vv`: Enable more verbose logging (ERR level)
+- `-vvv`: Enable detailed logging (WARNING level)
+- `-vvvv`: Enable info logging (INFO level)
+- `-vvvvv`: Enable debug logging (DEBUG level)
+- `-h`: Display help information
+
+**Examples:**
+
+```bash
+# Start client with default settings
+./cbc.sh
+
+# Start client for specific user
+./cbc.sh -u student1
+
+# Start client with specific topic and verbose logging
+./cbc.sh -u student1 -t PLLB10001001 -vv
+
+# Start client with debug logging
+./cbc.sh -vvvvv
+```
+
+**Interactive Commands (once client is running):**
+
+- `s`: Start the test session
+- `t`: Display remaining time or test start time
+- `l`: List all questions
+- `p`: Display progress (answered and marked questions)
+- `<number>`: Request a specific question by its number (e.g., `1`, `15`)
+- `a`: Submit an answer
+- `r`: Mark current question for answering later
+- `f`: Finish the session and calculate results
+- `q`: Quit the session
 
 ## Installation
 
@@ -215,10 +295,10 @@ Run the server with the required options:
 # Set environment variables
 ./.env
 
-# Start the Server, no time limitation
+# Start the Server in coach mode, no time limitation
 ./cbs.sh -r > /dev/null &
 
-# Start the Server, 10 min limitation
+# Start the Server in coach mode, 10 min limitation
 ./cbs.sh -r -l 10 > /dev/null &
 
 # Start the Server for the specified user without output

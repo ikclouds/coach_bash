@@ -58,7 +58,7 @@ function show_help() {
     ui_print "  -l n, --limit-time n         Enable time-limited mode for answering questions (n minutes)"
     ui_print "  -p file, --pipe file         Specify the name of the named pipe to use (default: /opt/cb/cbs_pipe)"
     ui_print "  -q file, --questions file    Specify the question file to use (default: ./course.txt)"
-    ui_print "  -r, --response               Enable response to client about the correctness of the answer"
+    ui_print "  -r, --response               Enable response to client about the correctness of the answer (coach mode)"
     ui_print "  -t topic, --topic topic      Specify the topic (course code) to use (required or set CB_TOPIC env variable)"
     ui_print "  -u user, --username user     Specify username (required or set CB_USERNAME env variable)"
     ui_print "  -v                           Logging level for CRIT messages and above"
@@ -217,7 +217,15 @@ function display_progress() {
     for i in "${!QUESTIONS[@]}"; do
         local question_number=$((i + 1))
         if [[ " ${!ANSWERED_QUESTIONS[@]} " == *" $question_number "* ]]; then
-            progress_list+="$question_number+ "
+            if [[ "${RESPONSE,,}" == false ]]; then
+                progress_list+="$question_number* "
+            else
+                if [[ "${ANSWERED_QUESTIONS[$question_number]}" == "1" ]]; then
+                    progress_list+="$question_number+ "
+                else
+                    progress_list+="$question_number! "
+                fi
+            fi
         else
             progress_list+="$question_number "
         fi
@@ -284,8 +292,6 @@ function process_answer() {
     # Check if the question has already been answered
     if [[ " ${!ANSWERED_QUESTIONS[@]} " == *" $question_number "* ]]; then
         info_print "Question $question_number has already been answered. Overwriting previous answer."
-    else
-        ANSWERED_QUESTIONS["$question_number"]="0"  # Initialize as incorrect
     fi
 
     # Validate the answer
