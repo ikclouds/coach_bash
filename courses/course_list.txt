@@ -1,3 +1,4 @@
 PLLB10001001|Linux Bash - fundamentals|Beginner
 PLPY10001001|Python - module 0 - setup development environment|Intermediate
-CETF10001001|Terraform Ass Certification (003) - module 1 - introduction |Beginner
+CETF10001001|Terraform Ass Certification (003) - module 1 - introduction|Beginner
+PLGT10001001|Git and GitHub: A Foundation Guide to Learning|Intermediate
